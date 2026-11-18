@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reservas de Tenis - Sportivo Fútbol Club de Álvarez</title>
+  <link rel="icon" type="image/png" href="logo-club.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <img src="logo-club.png" alt="Sportivo Fútbol Club Álvarez" class="brand-logo" />
+        <div>
+          <h1>Sportivo Fútbol Club de Álvarez</h1>
+          <p class="subtitle">Sistema Oficial de Reserva de Canchas de Tenis • Consultas: <strong>3402 521352</strong></p>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+        <a href="estadisticas.html" class="nav-admin-link">📊 Panel Estadísticas</a>
+        <div class="clock-panel">
+          <div class="clock-display">
+            <span class="clock-label">Fecha y Hora del Sistema:</span>
+            <strong id="current-time-display">--/--/---- --:--:--</strong>
+          </div>
+          <div class="sim-controls">
+            <label for="time-mode-select">Modo Horario:</label>
+            <select id="time-mode-select" title="Permite simular las 20:00 hs o 21:00 hs para probar la prioridad de profesores y apertura de turnos">
+              <option value="real">Hora Real Actual</option>
+              <option value="sim-20">Simular Hoy 20:15 hs (Prioridad Profesores para Mañana)</option>
+              <option value="sim-21">Simular Hoy 21:15 hs (Abierto a Todos para Mañana)</option>
+              <option value="sim-18">Simular Hoy 18:00 hs (Mañana aún Cerrado)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container main-grid">
+    <!-- Mobile User Floating Bar / Quick Actions (Only on small screens) -->
+    <div class="mobile-user-bar" id="mobile-user-bar">
+      <div class="mobile-user-info" id="mobile-user-info">
+        <span class="mobile-user-icon">👤</span>
+        <div class="mobile-user-text">
+          <strong id="mobile-user-name">Sin identificar</strong>
+          <small id="mobile-user-status">Completá tus datos para reservar</small>
+        </div>
+      </div>
+      <button type="button" class="btn-mobile-auth" id="btn-toggle-auth-modal">
+        Identificarme / Cambiar
+      </button>
+    </div>
+
+    <!-- Left Column: User Registration / Active Profile & Rules -->
+    <aside class="sidebar" id="sidebar-panel">
+      <section class="card" id="auth-card">
+        <div class="card-header">
+          <h2>Registro / Ingreso de Jugador</h2>
+          <p>Completá tus datos para habilitar la reserva de turnos</p>
+        </div>
+
+        <!-- Quick Professor Access Bar -->
+        <div class="prof-quick-box">
+          <span class="prof-quick-title">Acceso Rápido Profesores (Prioridad 20:00 hs):</span>
+          <div class="prof-buttons">
+            <button type="button" class="btn-prof" id="btn-prof-jarno">
+              🎾 Jarno Cefarelli
+            </button>
+            <button type="button" class="btn-prof" id="btn-prof-leonardo">
+              🎾 Leonardo Albertoli
+            </button>
+          </div>
+        </div>
+
+        <form id="register-form" class="auth-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="nombre">Nombre *</label>
+              <input type="text" id="nombre" required placeholder="Ej: Juan" />
+            </div>
+            <div class="form-group">
+              <label for="apellido">Apellido *</label>
+              <input type="text" id="apellido" required placeholder="Ej: Pérez" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="dni">DNI *</label>
+              <input type="text" id="dni" required placeholder="Sin puntos, ej: 35123456" />
+            </div>
+            <div class="form-group">
+              <label for="celular">Celular *</label>
+              <input type="tel" id="celular" required placeholder="Ej: 3402 521352" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="mail">Correo Electrónico (Mail) *</label>
+            <input type="email" id="mail" required placeholder="ejemplo@correo.com" />
+          </div>
+
+          <p style="font-size: 0.78rem; color: #64748b; margin-top: -0.25rem;">
+            ℹ️ <em>El sistema valida automáticamente tu DNI con el padrón oficial de socios de tenis del club.</em>
+          </p>
+
+          <button type="submit" class="btn-primary btn-full">Guardar Datos e Ingresar</button>
+        </form>
+
+        <div class="login-divider">
+          <span>¿Ya te registraste antes? Ingresá con tu Mail:</span>
+        </div>
+
+        <form id="quick-login-form" class="quick-login">
+          <input type="email" id="login-mail" placeholder="Ingresá tu Mail registrado" required />
+          <button type="submit" class="btn-secondary">Ingresar</button>
+        </form>
+      </section>
+
+      <!-- Active User Profile Card (Hidden until logged in) -->
+      <section class="card hidden" id="profile-card">
+        <div class="profile-header">
+          <div>
+            <span class="role-badge" id="profile-role-badge">Socio / Jugador</span>
+            <h2 id="profile-name">-</h2>
+          </div>
+          <button type="button" id="btn-logout" class="btn-outline-sm">Cambiar Usuario</button>
+        </div>
+
+        <ul class="profile-details">
+          <li><strong>DNI:</strong> <span id="profile-dni">-</span></li>
+          <li><strong>Celular:</strong> <span id="profile-celular">-</span></li>
+          <li><strong>Mail:</strong> <span id="profile-mail">-</span></li>
+        </ul>
+
+        <div id="profile-privilege-info" class="privilege-box"></div>
+      </section>
+    </aside>
+
+    <!-- Right Column: Courts & Turn Selection -->
+    <section class="booking-section">
+      <div class="card">
+        <div class="booking-toolbar">
+          <div>
+            <h2>Elección de Turnos por Día</h2>
+            <p class="toolbar-desc">Seleccioná si querés ver los turnos de Hoy o de Mañana (no se permiten reservas hacia adelante).</p>
+          </div>
+
+          <div class="day-tabs">
+            <button type="button" class="day-tab active" id="tab-today" data-target="today">
+              <span class="tab-title">Turnos de HOY</span>
+              <span class="tab-date" id="label-date-today">--/--/----</span>
+            </button>
+            <button type="button" class="day-tab" id="tab-tomorrow" data-target="tomorrow">
+              <span class="tab-title">Turnos de MAÑANA</span>
+              <span class="tab-date" id="label-date-tomorrow">--/--/----</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Status Banner explaining window eligibility -->
+        <div id="window-status-banner" class="status-banner"></div>
+
+        <!-- Feedback Alert -->
+        <div id="feedback-alert" class="feedback-alert hidden"></div>
+
+        <!-- 2 Courts Grid -->
+        <div class="courts-container" id="courts-container">
+          <!-- Populated dynamically via app.js -->
+        </div>
+      </div>
+
+      <!-- My Bookings for Selected Date -->
+      <div class="card" id="my-bookings-card">
+        <h3>Mis Reservas en la Fecha Seleccionada (<span id="selected-date-title">--</span>)</h3>
+        <div id="my-bookings-list" class="my-bookings-list">
+          <p class="empty-msg">Iniciá sesión y elegí un turno disponible para verlo aquí.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Payment Modal for Non-Members (5-minute countdown & transfer upload) -->
+  <div id="payment-modal" class="payment-modal hidden">
+    <div class="payment-modal-content">
+      <div class="payment-header">
+        <h3>🎾 Pago de Turno - No Socio SFCA</h3>
+        <span class="badge-nosocio">Transferencia Bancaria</span>
+      </div>
+      <p style="font-size: 0.9rem; margin-bottom: 0.75rem;">
+        Se ha tomado tu reserva de forma provisional. Tenés <strong>5 minutos</strong> para transferir y adjuntar el comprobante:
+      </p>
+
+      <div class="countdown-box">
+        <span>Tiempo restante para subir comprobante:</span>
+        <strong id="payment-timer" class="payment-timer">05:00</strong>
+      </div>
+
+      <div class="cbu-box">
+        <div><strong>Club:</strong> Sportivo Fútbol Club de Álvarez</div>
+        <div><strong>CBU:</strong> 2850381140094123456789</div>
+        <div><strong>Alias:</strong> SPORTIVO.ALVAREZ.TENIS</div>
+        <div><strong>Monto Turno (90 min):</strong> $4.500</div>
+      </div>
+
+      <form id="payment-form" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+        <div>
+          <label style="font-size: 0.85rem; font-weight: 600;">Adjuntar Comprobante de Transferencia (PDF o Foto):</label>
+          <input type="file" id="payment-file" accept="image/*,.pdf" required style="margin-top: 0.35rem; width: 100%;" />
+        </div>
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+          <button type="button" class="btn-cancel" id="btn-cancel-payment">Cancelar Reserva</button>
+          <button type="submit" class="btn-primary">Confirmar Pago y Turno</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel de Estadísticas y Administración - Sportivo FC Álvarez</title>
+  <link rel="icon" type="image/png" href="logo-club.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .admin-header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      color: #fff;
+      padding: 1.25rem 0;
+      margin-bottom: 2rem;
+    }
+    .stats-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+    .kpi-card {
+      background: #fff;
+      padding: 1.25rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .kpi-title {
+      font-size: 0.82rem;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .kpi-value {
+      font-size: 2.1rem;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .kpi-sub {
+      font-size: 0.8rem;
+      color: #15803d;
+    }
+    .badge-locker {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: inline-block;
+      margin-left: 0.35rem;
+    }
+    .badge-normal {
+      background: #dcfce7;
+      color: #166534;
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: inline-block;
+    }
+    .badge-nosocio {
+      background: #ffedd5;
+      color: #c2410c;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+    .badge-socio {
+      background: #dbeafe;
+      color: #1e40af;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+    .table-container {
+      overflow-x: auto;
+      margin-top: 1rem;
+    }
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      text-align: left;
+    }
+    .admin-table th, .admin-table td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .admin-table th {
+      background: #f8fafc;
+      font-weight: 700;
+      color: #475569;
+    }
+    .email-preview-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 0.75rem;
+      font-family: monospace;
+      font-size: 0.82rem;
+      white-space: pre-wrap;
+      color: #334155;
+    }
+    .nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      padding: 0.5rem 0.9rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .nav-btn:hover {
+      background: rgba(255,255,255,0.25);
+    }
+  </style>
+</head>
+<body>
+  <header class="admin-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <img src="logo-club.png" alt="Sportivo FC Álvarez" class="brand-logo" />
+        <div>
+          <h1>Panel de Administración y Estadísticas</h1>
+          <p class="subtitle">Sportivo Fútbol Club de Álvarez • Tenis y Canchas</p>
+        </div>
+      </div>
+      <div>
+        <a href="index.html" class="nav-btn">← Volver a Reservar Turnos</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- KPIs -->
+    <div class="stats-kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-title">Padrón Oficial de Socios</span>
+        <div class="kpi-value" id="kpi-padron" style="color: #2563eb;">-</div>
+        <span class="kpi-sub">DNI cargados en sistema</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-title">Socios Registrados</span>
+        <div class="kpi-value" id="kpi-socios">-</div>
+        <span class="kpi-sub">Habilitados para reservar directo</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-title">No Socios Registrados</span>
+        <div class="kpi-value" id="kpi-nosocios" style="color: #c2410c;">-</div>
+        <span class="kpi-sub">Abonan por transferencia</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-title">Total Reservas Realizadas</span>
+        <div class="kpi-value" id="kpi-turnos">-</div>
+        <span class="kpi-sub">En ambas canchas</span>
+      </div>
+    </div>
+
+    <!-- Padrón de Socios Upload / Import Box -->
+    <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #2563eb;">
+      <h2>Cargar / Actualizar Padrón de Socios de Tenis</h2>
+      <p class="toolbar-desc">
+        Podés subir el listado en formato <strong>Excel (.xlsx, .csv)</strong> o texto con los DNI y Nombres. El sistema cruzará automáticamente los DNI de cada persona que reserve.
+      </p>
+
+      <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
+        <div style="flex: 1; min-width: 250px;">
+          <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.35rem;">
+            Subir archivo (CSV, TXT o JSON):
+          </label>
+          <input type="file" id="file-padron" accept=".csv,.txt,.json" style="padding: 0.4rem; border: 1px solid var(--border); border-radius: 6px; width: 100%;" />
+        </div>
+        <button type="button" class="btn-primary" id="btn-import-file">Procesar e Importar Padrón</button>
+      </div>
+      <div id="import-feedback" style="margin-top: 0.65rem; font-size: 0.88rem; font-weight: 600;"></div>
+    </div>
+
+    <!-- Ranking Table & Detection of slot locking -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <div>
+          <h2>Ranking de Usuarios: Frecuencia y Detección de Bloqueo de Turnos</h2>
+          <p class="toolbar-desc">Identifica quiénes piden más turnos y si monopolizan siempre el mismo horario bloqueando al resto de los socios.</p>
+        </div>
+        <button class="btn-secondary" id="btn-refresh-stats">Actualizar Métricas</button>
+      </div>
+
+      <div class="table-container">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Usuario / Jugador</th>
+              <th>Contacto</th>
+              <th>Condición</th>
+              <th>Turnos Totales</th>
+              <th>Turno Más Elegido</th>
+              <th>% Dominancia</th>
+              <th>Patrón de Uso</th>
+            </tr>
+          </thead>
+          <tbody id="ranking-table-body">
+            <tr><td colspan="7" style="text-align: center; color: #94a3b8;">Cargando estadísticas...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Demand by Time Slot -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <h2>Demanda por Horario Oficial</h2>
+      <p class="toolbar-desc">Conocé qué horarios son los más solicitados por los socios para organizar los mantenimientos de polvo de ladrillo.</p>
+      <div class="table-container">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Horario Oficial</th>
+              <th>Cantidad de Reservas</th>
+              <th>Porcentaje de Demanda</th>
+            </tr>
+          </thead>
+          <tbody id="slots-demand-body">
+            <tr><td colspan="3" style="text-align: center; color: #94a3b8;">Cargando demanda...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Sent confirmation emails log -->
+    <div class="card">
+      <h2>Registro de Mails de Confirmación Enviados</h2>
+      <p class="toolbar-desc">Comprueba los mensajes enviados a los usuarios recordando que si no usan el turno deben cancelarlo.</p>
+      <div id="emails-log-list" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+        <p style="color: #94a3b8;">No hay correos enviados todavía.</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/stats');
+        if (!res.ok) throw new Error('Error al obtener datos');
+        const data = await res.json();
+
+        document.getElementById('kpi-socios').textContent = data.sociosCount;
+        document.getElementById('kpi-nosocios').textContent = data.noSociosCount;
+        document.getElementById('kpi-turnos').textContent = data.totalBookings;
+        document.getElementById('kpi-emails').textContent = (data.recentEmails || []).length;
+
+        // Populate ranking table
+        const tbody = document.getElementById('ranking-table-body');
+        if (!data.userRanking || data.userRanking.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #94a3b8;">Aún no se registraron reservas en el sistema.</td></tr>';
+        } else {
+          tbody.innerHTML = '';
+          data.userRanking.forEach(u => {
+            const tr = document.createElement('tr');
+            const isNoSocio = u.memberType === 'no_socio';
+            tr.innerHTML = `
+              <td>
+                <strong>${u.name}</strong><br>
+                <small style="color: #64748b;">DNI: ${u.dni}</small>
+              </td>
+              <td>
+                <small>${u.mail}</small>
+              </td>
+              <td>
+                <span class="${isNoSocio ? 'badge-nosocio' : 'badge-socio'}">${isNoSocio ? 'No Socio' : 'Socio SFCA'}</span>
+              </td>
+              <td><strong>${u.totalBookings}</strong></td>
+              <td>${u.favoriteSlot || '-'}</td>
+              <td><strong>${u.dominancePct}%</strong></td>
+              <td>
+                ${u.isSlotLocker
+                  ? '<span class="badge-locker">⚠️ Posible bloqueo reiterado</span>'
+                  : '<span class="badge-normal">✓ Uso variado</span>'
+                }
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+
+        // Demand by slot
+        const sBody = document.getElementById('slots-demand-body');
+        const slots = [
+          '14:00 a 15:30 hs',
+          '15:30 a 17:00 hs',
+          '17:00 a 18:30 hs',
+          '18:30 a 20:00 hs',
+          '20:00 a 21:30 hs',
+          '21:30 a 23:00 hs'
+        ];
+        sBody.innerHTML = '';
+        slots.forEach(slot => {
+          const count = (data.slotStats && data.slotStats[slot]) || 0;
+          const pct = data.totalBookings > 0 ? Math.round((count / data.totalBookings) * 100) : 0;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${slot}</strong></td>
+            <td><strong>${count}</strong> reservas</td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div style="background: #e2e8f0; height: 8px; width: 120px; border-radius: 4px; overflow: hidden;">
+                  <div style="background: var(--primary); height: 100%; width: ${pct}%;"></div>
+                </div>
+                <span>${pct}%</span>
+              </div>
+            </td>
+          `;
+          sBody.appendChild(tr);
+        });
+
+        // Emails log
+        const emailContainer = document.getElementById('emails-log-list');
+        if (!data.recentEmails || data.recentEmails.length === 0) {
+          emailContainer.innerHTML = '<p style="color: #94a3b8;">No se registraron envíos de correo aún.</p>';
+        } else {
+          emailContainer.innerHTML = '';
+          data.recentEmails.forEach(em => {
+            const box = document.createElement('div');
+            box.innerHTML = `
+              <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#475569;">
+                <span><strong>Para:</strong> ${em.to}</span>
+                <span>${new Date(em.date).toLocaleString('es-AR')}</span>
+              </div>
+              <div class="email-preview-box">${em.content}</div>
+            `;
+            emailContainer.appendChild(box);
+          });
+        }
+
+        // Load socios padrón count
+        try {
+          const sRes = await fetch('/api/socios');
+          if (sRes.ok) {
+            const sData = await sRes.json();
+            document.getElementById('kpi-padron').textContent = sData.total || 0;
+          }
+        } catch(e) {}
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Handle Padron file import
+    document.getElementById('btn-import-file').addEventListener('click', async () => {
+      const fileInput = document.getElementById('file-padron');
+      const feedback = document.getElementById('import-feedback');
+      if (!fileInput.files[0]) {
+        feedback.style.color = '#dc2626';
+        feedback.textContent = 'Por favor seleccioná un archivo CSV o TXT primero.';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const text = e.target.result;
+          const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+          const socios = [];
+
+          lines.forEach(line => {
+            const parts = line.split(/[,;\t]/).map(p => p.trim().replace(/^["']|["']$/g, ''));
+            let dni = '';
+            let nombre = '';
+            parts.forEach(p => {
+              const clean = p.replace(/\D/g, '');
+              if (clean.length >= 6 && clean.length <= 9 && !dni) {
+                dni = clean;
+              } else if (p.length > 2 && !nombre && isNaN(p)) {
+                nombre = p;
+              }
+            });
+            if (dni) {
+              socios.push({ dni, nombre });
+            }
+          });
+
+          if (socios.length === 0) {
+            feedback.style.color = '#dc2626';
+            feedback.textContent = 'No se detectaron DNI válidos en el archivo. Verificá que contenga los números de documento.';
+            return;
+          }
+
+          const res = await fetch('/api/socios/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ socios })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            feedback.style.color = '#15803d';
+            feedback.textContent = `✅ ${data.message}`;
+            loadStats();
+          } else {
+            feedback.style.color = '#dc2626';
+            feedback.textContent = data.error || 'Error al importar padrón.';
+          }
+        } catch (err) {
+          feedback.style.color = '#dc2626';
+          feedback.textContent = 'Error al leer el archivo.';
+        }
+      };
+      reader.readAsText(fileInput.files[0]);
+    });
+
+    document.getElementById('btn-refresh-stats').addEventListener('click', loadStats);
+    loadStats();
+  </script>
+</body>
+</html>

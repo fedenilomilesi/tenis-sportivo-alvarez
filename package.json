@@ -1,0 +1,9 @@
+{
+  "name": "tenis-sportivo-alvarez",
+  "version": "1.0.0",
+  "description": "Sistema de reserva de turnos de tenis para Sportivo Fútbol Club de Álvarez (2 canchas, prioridad profesores Jarno Cefarelli y Leonardo Albertoli)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
