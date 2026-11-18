@@ -154,7 +154,7 @@ function openBookingPlayersModal(date, court, slot) {
   pendingSlotSelection = { date, court, slot };
   modalCourtName.textContent = court;
   modalSlotTime.textContent = slot;
-  modalHolderName.textContent = `${currentUser.nombre} ${currentUser.apellido} (${currentUser.memberType === 'no_socio' ? 'No Socio' : 'Socio SFCA'})`;
+  modalHolderName.textContent = `${currentUser.nombre} ${currentUser.apellido} (${currentUser.memberType === 'no_socio' ? 'No Socio' : 'Socio SFC'})`;
 
   populatePlayerSelect(selectPlayer2);
   populatePlayerSelect(selectPlayer3);
@@ -463,7 +463,7 @@ function renderProfile() {
       ? '🎾 Profesor Oficial (Prioridad)'
       : isNoSocio
       ? `${currentUser.mail} • No Socio (Transf.)`
-      : `${currentUser.mail} • Socio SFCA`;
+      : `${currentUser.mail} • Socio SFC`;
   }
 
   const privBox = document.getElementById('profile-privilege-info');
@@ -484,7 +484,7 @@ function renderProfile() {
     privBox.style.background = '#f0fdf4';
     privBox.style.color = '#166534';
     privBox.innerHTML =
-      '<strong>Socio de Tenis SFCA:</strong> Podés reservar <strong>1 solo turno por día</strong> a partir de las <strong>21:00 hs del día anterior</strong> sin costo adicional.';
+      '<strong>Socio de Tenis SFC:</strong> Podés reservar <strong>1 solo turno por día</strong> a partir de las <strong>21:00 hs del día anterior</strong> sin costo adicional.';
   }
 }
 
