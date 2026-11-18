@@ -658,6 +658,16 @@ const server = http.createServer(async (req, res) => {
       sociosCount,
       noSociosCount,
       totalBookings,
+      registeredUsers: db.users.map(u => ({
+        id: u.id,
+        nombre: u.nombre,
+        apellido: u.apellido,
+        dni: u.dni,
+        celular: u.celular,
+        mail: u.mail,
+        role: u.role,
+        memberType: u.memberType
+      })),
       userRanking,
       slotStats,
       recentEmails: db.emails.slice(-10).reverse()

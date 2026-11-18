@@ -186,6 +186,35 @@
       <div id="import-feedback" style="margin-top: 0.65rem; font-size: 0.88rem; font-weight: 600;"></div>
     </div>
 
+    <!-- Tabla de Todos los Usuarios Registrados en el Sistema -->
+    <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #10b981;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <div>
+          <h2>Listado de Usuarios Registrados en la Base de Datos</h2>
+          <p class="toolbar-desc">Detalle de todos los usuarios registrados para reservar (Nombre, DNI, Celular, Mail y Condición).</p>
+        </div>
+        <span id="registered-users-count" style="font-weight: 700; color: #047857; background: #d1fae5; padding: 0.35rem 0.75rem; border-radius: 999px; font-size: 0.85rem;">- Registrados</span>
+      </div>
+
+      <div class="table-container">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Nombre y Apellido</th>
+              <th>DNI</th>
+              <th>Celular</th>
+              <th>Correo Electrónico</th>
+              <th>Condición de Socio</th>
+              <th>Rol en Sistema</th>
+            </tr>
+          </thead>
+          <tbody id="registered-users-body">
+            <tr><td colspan="6" style="text-align: center; color: #94a3b8;">Cargando usuarios registrados...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Ranking Table & Detection of slot locking -->
     <div class="card" style="margin-bottom: 1.5rem;">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
@@ -257,6 +286,37 @@
         document.getElementById('kpi-nosocios').textContent = data.noSociosCount;
         document.getElementById('kpi-turnos').textContent = data.totalBookings;
         document.getElementById('kpi-emails').textContent = (data.recentEmails || []).length;
+
+        // Populate registered users table
+        const regBody = document.getElementById('registered-users-body');
+        const regCount = document.getElementById('registered-users-count');
+        if (data.registeredUsers && data.registeredUsers.length > 0) {
+          regCount.textContent = `${data.registeredUsers.length} Usuarios Registrados`;
+          regBody.innerHTML = '';
+          data.registeredUsers.forEach(u => {
+            const tr = document.createElement('tr');
+            const isNoSocio = u.memberType === 'no_socio';
+            const isProf = u.role === 'profesor';
+            const isAdmin = u.role === 'admin';
+            tr.innerHTML = `
+              <td><strong>${u.nombre} ${u.apellido}</strong></td>
+              <td>${u.dni}</td>
+              <td>${u.celular || '-'}</td>
+              <td><a href="mailto:${u.mail}" style="color: #2563eb; text-decoration: none;">${u.mail}</a></td>
+              <td>
+                <span class="${isNoSocio ? 'badge-nosocio' : 'badge-socio'}">${isNoSocio ? 'No Socio (Transf.)' : 'Socio SFCA'}</span>
+              </td>
+              <td>
+                <span style="font-weight: 700; color: ${isAdmin ? '#7c3aed' : isProf ? '#b45309' : '#475569'};">
+                  ${isAdmin ? '🛡️ Administrador' : isProf ? '🎾 Profesor Oficial' : 'Jugador / Socio'}
+                </span>
+              </td>
+            `;
+            regBody.appendChild(tr);
+          });
+        } else {
+          regBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #94a3b8;">No hay usuarios registrados aún.</td></tr>';
+        }
 
         // Populate ranking table
         const tbody = document.getElementById('ranking-table-body');
