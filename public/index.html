@@ -19,19 +19,19 @@
       </div>
 
       <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-        <a href="estadisticas.html" class="nav-admin-link">📊 Panel Estadísticas</a>
+        <a href="estadisticas.html" class="nav-admin-link" id="nav-admin-btn" style="display: none;">📊 Panel Estadísticas</a>
         <div class="clock-panel">
           <div class="clock-display">
-            <span class="clock-label">Fecha y Hora del Sistema:</span>
+            <span class="clock-label">Hora:</span>
             <strong id="current-time-display">--/--/---- --:--:--</strong>
           </div>
-          <div class="sim-controls">
+          <div class="sim-controls" id="sim-controls-wrapper" style="display: none;">
             <label for="time-mode-select">Modo Horario:</label>
-            <select id="time-mode-select" title="Permite simular las 20:00 hs o 21:00 hs para probar la prioridad de profesores y apertura de turnos">
+            <select id="time-mode-select">
               <option value="real">Hora Real Actual</option>
-              <option value="sim-20">Simular Hoy 20:15 hs (Prioridad Profesores para Mañana)</option>
-              <option value="sim-21">Simular Hoy 21:15 hs (Abierto a Todos para Mañana)</option>
-              <option value="sim-18">Simular Hoy 18:00 hs (Mañana aún Cerrado)</option>
+              <option value="sim-20">Simular Hoy 20:15 hs (Prioridad Profesores)</option>
+              <option value="sim-21">Simular Hoy 21:15 hs (Abierto a Todos)</option>
+              <option value="sim-18">Simular Hoy 18:00 hs (Mañana Cerrado)</option>
             </select>
           </div>
         </div>
@@ -58,13 +58,69 @@
     <aside class="sidebar" id="sidebar-panel">
       <section class="card" id="auth-card">
         <div class="card-header">
-          <h2>Registro / Ingreso de Jugador</h2>
-          <p>Completá tus datos para habilitar la reserva de turnos</p>
+          <h2>Ingreso de Jugador / Reserva</h2>
+          <p>Ingresá con tu Mail para ver y reservar turnos en Cancha 1 y Cancha 2</p>
         </div>
 
-        <!-- Quick Professor Access Bar -->
-        <div class="prof-quick-box">
-          <span class="prof-quick-title">Acceso Rápido Profesores (Prioridad 20:00 hs):</span>
+        <!-- Acceso Principal por Mail -->
+        <form id="quick-login-form" class="auth-form" style="margin-bottom: 1rem;">
+          <div class="form-group">
+            <label for="login-mail">Correo Electrónico (Mail) *</label>
+            <input type="email" id="login-mail" placeholder="ejemplo@correo.com" required />
+          </div>
+          <button type="submit" class="btn-primary btn-full">Ingresar a la Cancha</button>
+        </form>
+
+        <div class="login-divider">
+          <span>¿Es tu primera vez reservando?</span>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 0.5rem;">
+          <button type="button" id="btn-show-register" class="btn-secondary" style="width: 100%;">
+            Registrarme como nuevo jugador
+          </button>
+        </div>
+
+        <!-- Formulario de registro (colapsable/oculto inicialmente para que sea rápido para los habituales) -->
+        <form id="register-form" class="auth-form hidden" style="margin-top: 1rem; border-top: 1px dashed var(--border); padding-top: 1rem;">
+          <h3 style="font-size: 0.95rem; margin-bottom: 0.5rem; color: #1e293b;">Registro Inicial de Datos</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="nombre">Nombre *</label>
+              <input type="text" id="nombre" placeholder="Ej: Juan" />
+            </div>
+            <div class="form-group">
+              <label for="apellido">Apellido *</label>
+              <input type="text" id="apellido" placeholder="Ej: Pérez" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="dni">DNI *</label>
+              <input type="text" id="dni" placeholder="Sin puntos, ej: 35123456" />
+            </div>
+            <div class="form-group">
+              <label for="celular">Celular *</label>
+              <input type="tel" id="celular" placeholder="Ej: 3402 521352" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="reg-mail">Correo Electrónico (Mail) *</label>
+            <input type="email" id="reg-mail" placeholder="ejemplo@correo.com" />
+          </div>
+
+          <p style="font-size: 0.78rem; color: #64748b; margin-top: -0.25rem;">
+            ℹ️ <em>El sistema valida automáticamente tu DNI con el padrón oficial de socios de tenis del club.</em>
+          </p>
+
+          <button type="submit" class="btn-primary btn-full">Guardar Registro e Ingresar</button>
+        </form>
+
+        <!-- Quick Professor Access Bar (discreto al final) -->
+        <div class="prof-quick-box" style="margin-top: 1.25rem; margin-bottom: 0;">
+          <span class="prof-quick-title">Acceso Profesores Oficiales:</span>
           <div class="prof-buttons">
             <button type="button" class="btn-prof" id="btn-prof-jarno">
               🎾 Jarno Cefarelli
@@ -74,50 +130,6 @@
             </button>
           </div>
         </div>
-
-        <form id="register-form" class="auth-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="nombre">Nombre *</label>
-              <input type="text" id="nombre" required placeholder="Ej: Juan" />
-            </div>
-            <div class="form-group">
-              <label for="apellido">Apellido *</label>
-              <input type="text" id="apellido" required placeholder="Ej: Pérez" />
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label for="dni">DNI *</label>
-              <input type="text" id="dni" required placeholder="Sin puntos, ej: 35123456" />
-            </div>
-            <div class="form-group">
-              <label for="celular">Celular *</label>
-              <input type="tel" id="celular" required placeholder="Ej: 3402 521352" />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="mail">Correo Electrónico (Mail) *</label>
-            <input type="email" id="mail" required placeholder="ejemplo@correo.com" />
-          </div>
-
-          <p style="font-size: 0.78rem; color: #64748b; margin-top: -0.25rem;">
-            ℹ️ <em>El sistema valida automáticamente tu DNI con el padrón oficial de socios de tenis del club.</em>
-          </p>
-
-          <button type="submit" class="btn-primary btn-full">Guardar Datos e Ingresar</button>
-        </form>
-
-        <div class="login-divider">
-          <span>¿Ya te registraste antes? Ingresá con tu Mail:</span>
-        </div>
-
-        <form id="quick-login-form" class="quick-login">
-          <input type="email" id="login-mail" placeholder="Ingresá tu Mail registrado" required />
-          <button type="submit" class="btn-secondary">Ingresar</button>
-        </form>
       </section>
 
       <!-- Active User Profile Card (Hidden until logged in) -->
@@ -167,8 +179,20 @@
         <!-- Feedback Alert -->
         <div id="feedback-alert" class="feedback-alert hidden"></div>
 
+        <!-- Lock Message for Unauthenticated Users -->
+        <div id="courts-locked-msg" class="card" style="text-align: center; padding: 2.5rem 1.5rem; background: #f8fafc; border: 2px dashed #cbd5e1; margin-bottom: 1.5rem;">
+          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🔒</div>
+          <h3 style="font-size: 1.25rem; color: #1e293b; margin-bottom: 0.35rem;">Iniciá sesión para ver y elegir los turnos</h3>
+          <p style="color: #64748b; font-size: 0.92rem; max-width: 480px; margin: 0 auto 1.25rem auto;">
+            Ingresá con tu correo electrónico en el panel izquierdo (o desde el botón de identificación si estás en el celular) para consultar la disponibilidad de Cancha 1 y Cancha 2.
+          </p>
+          <button type="button" class="btn-primary" id="btn-focus-login" style="padding: 0.65rem 1.5rem;">
+            Ingresar con mi Mail
+          </button>
+        </div>
+
         <!-- 2 Courts Grid -->
-        <div class="courts-container" id="courts-container">
+        <div class="courts-container hidden" id="courts-container">
           <!-- Populated dynamically via app.js -->
         </div>
       </div>

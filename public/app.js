@@ -235,13 +235,17 @@ function updateClockAndLabels() {
 function renderProfile() {
   const mobileUserName = document.getElementById('mobile-user-name');
   const mobileUserStatus = document.getElementById('mobile-user-status');
+  const navAdminBtn = document.getElementById('nav-admin-btn');
+  const simControls = document.getElementById('sim-controls-wrapper');
 
   if (!currentUser) {
     authCard.classList.remove('hidden');
     profileCard.classList.add('hidden');
+    if (navAdminBtn) navAdminBtn.style.display = 'none';
+    if (simControls) simControls.style.display = 'none';
     if (mobileUserName && mobileUserStatus) {
       mobileUserName.textContent = 'Sin registrar / identificar';
-      mobileUserStatus.textContent = 'Tocá para ingresar tus datos';
+      mobileUserStatus.textContent = 'Tocá para ingresar con tu Mail';
     }
     return;
   }
@@ -249,9 +253,21 @@ function renderProfile() {
   authCard.classList.add('hidden');
   profileCard.classList.remove('hidden');
 
-  const badge = document.getElementById('profile-role-badge');
   const isProf = currentUser.role === 'profesor';
-  badge.textContent = isProf ? '🎾 Profesor Oficial (Prioridad)' : 'Socio / Jugador';
+  const isAdmin = currentUser.role === 'admin';
+
+  // Solo profesores o administradores tienen acceso a panel / pruebas avanzadas
+  if (navAdminBtn) {
+    navAdminBtn.style.display = (isProf || isAdmin) ? 'inline-flex' : 'none';
+  }
+  if (simControls) {
+    // Si querés activar simulación de horarios, podés agregarlo con ?demo=true en la url
+    const hasDemoParam = new URLSearchParams(window.location.search).has('demo');
+    simControls.style.display = (hasDemoParam || isAdmin) ? 'flex' : 'none';
+  }
+
+  const badge = document.getElementById('profile-role-badge');
+  badge.textContent = isProf ? '🎾 Profesor Oficial (Prioridad)' : isAdmin ? '🛡️ Administrador' : 'Socio / Jugador';
   badge.className = `role-badge ${isProf ? 'role-profesor' : ''}`;
 
   document.getElementById('profile-name').textContent = `${currentUser.nombre} ${currentUser.apellido}`;
@@ -340,14 +356,26 @@ function renderStatusBanner() {
 }
 
 function renderCourts() {
+  const courtsLockedMsg = document.getElementById('courts-locked-msg');
+
+  // Si el usuario no ha ingresado / iniciado sesión, ocultar grilla y mostrar cartel de bloqueo
+  if (!currentUser) {
+    if (courtsLockedMsg) courtsLockedMsg.classList.remove('hidden');
+    courtsContainer.classList.add('hidden');
+    return;
+  }
+
+  // Usuario autenticado: mostrar grilla de turnos
+  if (courtsLockedMsg) courtsLockedMsg.classList.add('hidden');
+  courtsContainer.classList.remove('hidden');
+
   const now = getEffectiveNow();
   const targetDateObj = getTargetDateObj();
   const targetDateStr = formatDateYMD(targetDateObj);
-  const role = currentUser ? currentUser.role : 'socio';
+  const role = currentUser.role || 'socio';
   const win = checkWindowFrontend(targetDateObj, role, now);
 
   const userHasBookedToday =
-    currentUser &&
     currentUser.role !== 'profesor' &&
     bookingsForDate.some(b => b.userId === currentUser.id);
 
@@ -859,21 +887,19 @@ async function handleCancelBooking(bookingId) {
 registerForm.addEventListener('submit', async e => {
   e.preventDefault();
   try {
-    const memberType = document.getElementById('member-type') ? document.getElementById('member-type').value : 'socio';
     const user = await registerOrUpdateUser({
       nombre: document.getElementById('nombre').value,
       apellido: document.getElementById('apellido').value,
       dni: document.getElementById('dni').value,
       celular: document.getElementById('celular').value,
-      mail: document.getElementById('mail').value,
-      memberType
+      mail: document.getElementById('reg-mail').value || document.getElementById('mail').value
     });
     currentUser = user;
     localStorage.setItem('sfca_tenis_user', JSON.stringify(currentUser));
     renderProfile();
     renderStatusBanner();
     renderCourts();
-    showFeedback(`¡Bienvenido/a ${currentUser.nombre} ${currentUser.apellido}! Tu usuario (${currentUser.mail}) quedó guardado en la base de datos.`, 'success');
+    showFeedback(`¡Bienvenido/a ${currentUser.nombre} ${currentUser.apellido}! Tu cuenta quedó registrada con éxito. Ya podés ver los turnos.`, 'success');
   } catch (err) {
     showFeedback(err.message || 'No se pudo guardar el registro.', 'error');
   }
@@ -913,13 +939,38 @@ async function loginAsProfessor(userId) {
   }
 }
 
+// Toggle registration form visibility
+const btnShowRegister = document.getElementById('btn-show-register');
+if (btnShowRegister) {
+  btnShowRegister.addEventListener('click', () => {
+    registerForm.classList.toggle('hidden');
+    if (!registerForm.classList.contains('hidden')) {
+      document.getElementById('nombre').focus();
+      btnShowRegister.textContent = 'Ocultar formulario de registro';
+    } else {
+      btnShowRegister.textContent = 'Registrarme como nuevo jugador';
+    }
+  });
+}
+
+const btnFocusLogin = document.getElementById('btn-focus-login');
+if (btnFocusLogin) {
+  btnFocusLogin.addEventListener('click', () => {
+    const input = document.getElementById('login-mail');
+    if (input) {
+      input.scrollIntoView({ behavior: 'smooth' });
+      input.focus();
+    }
+  });
+}
+
 const btnToggleAuthModal = document.getElementById('btn-toggle-auth-modal');
 if (btnToggleAuthModal) {
   btnToggleAuthModal.addEventListener('click', () => {
     const sidebar = document.getElementById('sidebar-panel');
     if (sidebar) {
       sidebar.scrollIntoView({ behavior: 'smooth' });
-      const firstInput = document.getElementById('nombre') || document.getElementById('login-dni');
+      const firstInput = document.getElementById('login-mail') || document.getElementById('nombre');
       if (firstInput) firstInput.focus();
     }
   });
