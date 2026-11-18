@@ -274,7 +274,6 @@ const server = http.createServer(async (req, res) => {
       const dni = String(body.dni || '').trim().replace(/\D/g, '');
       const celular = String(body.celular || '').trim();
       const mail = (body.mail || '').trim().toLowerCase();
-      const memberType = body.memberType === 'no_socio' ? 'no_socio' : 'socio';
 
       if (!nombre || !apellido || !dni || !celular || !mail) {
         return sendJson(res, 400, { error: 'Todos los campos (Nombre, Apellido, DNI, Celular y Mail) son obligatorios.' });
