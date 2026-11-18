@@ -19,14 +19,16 @@ const SLOTS = [
 
 const COURTS = ['Cancha 1', 'Cancha 2'];
 
+const PROF_DNIS = ['47039935', '25410483'];
+
 const DEFAULT_USERS = [
   {
     id: 'prof-jarno',
     nombre: 'Jarno',
     apellido: 'Cefarelli',
-    dni: '11111111',
+    dni: '47039935',
     celular: '3402521352',
-    mail: 'jarno.cefarelli@sportivoalvarez.com',
+    mail: 'jarnocefarelli@gmail.com',
     role: 'profesor',
     memberType: 'socio'
   },
@@ -34,9 +36,9 @@ const DEFAULT_USERS = [
     id: 'prof-leonardo',
     nombre: 'Leonardo',
     apellido: 'Albertoli',
-    dni: '22222222',
+    dni: '25410483',
     celular: '3402521352',
-    mail: 'leonardo.albertoli@sportivoalvarez.com',
+    mail: 'leonardoalbertoli@gmail.com',
     role: 'profesor',
     memberType: 'socio'
   },
@@ -83,8 +85,10 @@ function writeDb(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
-function isProfessorName(nombre, apellido) {
-  const full = `${nombre} ${apellido}`.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function isProfessorUser(nombre, apellido, dni) {
+  const clean = String(dni || '').replace(/\D/g, '');
+  if (PROF_DNIS.includes(clean)) return true;
+  const full = `${nombre || ''} ${apellido || ''}`.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   return (
     (full.includes('jarno') && full.includes('cefarelli')) ||
     (full.includes('leonardo') && full.includes('albertoli'))
@@ -281,7 +285,7 @@ const server = http.createServer(async (req, res) => {
 
       const db = readDb();
       let user = db.users.find(u => u.mail === mail || u.dni === dni);
-      const isProf = isProfessorName(nombre, apellido) || (user && user.role === 'profesor');
+      const isProf = isProfessorUser(nombre, apellido, dni) || (user && user.role === 'profesor');
 
       // Cruce automático con el padrón oficial de socios de tenis por DNI
       const isRegisteredSocio = isProf || checkIsSocio(dni);
@@ -334,6 +338,14 @@ const server = http.createServer(async (req, res) => {
       if (!user) {
         return sendJson(res, 404, { error: 'No se encontró una cuenta con ese correo electrónico o DNI. Por favor completá el registro inicial una sola vez.' });
       }
+
+      // Re-verificar si es profe por DNI al loguearse
+      if (PROF_DNIS.includes(cleanDni(user.dni)) || isProfessorUser(user.nombre, user.apellido, user.dni)) {
+        user.role = 'profesor';
+        user.memberType = 'socio';
+        writeDb(db);
+      }
+
       return sendJson(res, 200, { user });
     } catch (e) {
       return sendJson(res, 400, { error: 'Solicitud inválida.' });

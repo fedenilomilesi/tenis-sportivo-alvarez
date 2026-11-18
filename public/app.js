@@ -408,8 +408,10 @@ function renderCourts() {
         const isProfBooking = booking.userRole === 'profesor';
         item.className = `slot-item ${isMine ? 'booked-mine' : isProfBooking ? 'booked-prof' : 'booked'}`;
 
+        // Regla: Los usuarios comunes solo pueden cancelar SU propio turno.
+        // Los profesores o administradores tienen la facultad de liberar o cancelar turnos si es necesario.
         const canCancel =
-          currentUser && (booking.userId === currentUser.id || currentUser.role === 'profesor');
+          currentUser && (booking.userId === currentUser.id || currentUser.role === 'profesor' || currentUser.role === 'admin');
 
         item.innerHTML = `
           <div>
@@ -976,8 +978,8 @@ if (btnToggleAuthModal) {
   });
 }
 
-btnProfJarno.addEventListener('click', () => loginAsProfessor('prof-jarno'));
-btnProfLeonardo.addEventListener('click', () => loginAsProfessor('prof-leonardo'));
+if (btnProfJarno) btnProfJarno.addEventListener('click', () => loginAsProfessor('prof-jarno'));
+if (btnProfLeonardo) btnProfLeonardo.addEventListener('click', () => loginAsProfessor('prof-leonardo'));
 
 btnLogout.addEventListener('click', () => {
   currentUser = null;

@@ -14,12 +14,11 @@ function ensureSociosFile() {
     fs.mkdirSync(dataDir, { recursive: true });
   }
   if (!fs.existsSync(SOCIOS_FILE)) {
-    // Lista inicial de prueba que se reemplaza con el archivo real que suba el usuario
+    // Lista inicial con los profes y socios autorizados
     const initialSocios = [
-      { dni: '11111111', nombre: 'Jarno Cefarelli', categoria: 'profesor' },
-      { dni: '22222222', nombre: 'Leonardo Albertoli', categoria: 'profesor' },
-      { dni: '31610066', nombre: 'Federico Milesi', categoria: 'socio' },
-      { dni: '35123456', nombre: 'Socio Ejemplo', categoria: 'socio' }
+      { dni: '47039935', nombre: 'Jarno Cefarelli', categoria: 'profesor' },
+      { dni: '25410483', nombre: 'Leonardo Albertoli', categoria: 'profesor' },
+      { dni: '31610066', nombre: 'Federico Milesi', categoria: 'socio' }
     ];
     fs.writeFileSync(SOCIOS_FILE, JSON.stringify(initialSocios, null, 2), 'utf8');
   }
