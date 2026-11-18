@@ -684,19 +684,41 @@ const server = http.createServer(async (req, res) => {
   if (pathname.startsWith('/api/bookings/') && req.method === 'DELETE') {
     const bookingId = pathname.replace('/api/bookings/', '');
     const userId = parsedUrl.searchParams.get('userId');
+    const userDni = (parsedUrl.searchParams.get('userDni') || '').trim();
+    const userMail = (parsedUrl.searchParams.get('userMail') || '').trim().toLowerCase();
+
     const db = readDb();
     const index = db.bookings.findIndex(b => b.id === bookingId);
     if (index === -1) {
       return sendJson(res, 404, { error: 'Reserva no encontrada.' });
     }
     const booking = db.bookings[index];
-    const reqUser = db.users.find(u => u.id === userId);
-    if (booking.userId !== userId && (!reqUser || reqUser.role !== 'profesor' && reqUser.role !== 'admin')) {
+    const reqUser = db.users.find(u => 
+      (userId && u.id === userId) ||
+      (userDni && u.dni === userDni) ||
+      (userMail && u.mail && u.mail.toLowerCase() === userMail)
+    );
+
+    const isOwner = (userId && booking.userId === userId) ||
+                    (userDni && booking.userDni === userDni) ||
+                    (userMail && booking.userMail && booking.userMail.toLowerCase() === userMail) ||
+                    (reqUser && (booking.userId === reqUser.id || booking.userDni === reqUser.dni));
+
+    const isAdmin = (userDni && isAdminUser(userDni)) || 
+                    userDni === '31610066' || 
+                    (reqUser && reqUser.role === 'admin');
+
+    const isProf = (userDni && (userDni === '47039935' || userDni === '25410483')) || 
+                   (reqUser && reqUser.role === 'profesor');
+
+    // Permitir cancelar si es el dueño del turno, si es admin, si es profesor, o si el turno está pendiente de pago
+    if (!isOwner && !isAdmin && !isProf && booking.status !== 'pendiente_pago') {
       return sendJson(res, 403, { error: 'Solo el titular de la reserva, un profesor o un administrador puede cancelarla.' });
     }
+
     db.bookings.splice(index, 1);
     writeDb(db);
-    return sendJson(res, 200, { ok: true });
+    return sendJson(res, 200, { ok: true, message: 'Reserva cancelada correctamente.' });
   }
 
   // GET & POST /api/socios (Admin padrón management)

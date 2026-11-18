@@ -558,7 +558,11 @@ function renderCourts() {
 
   const userHasBookedToday =
     currentUser.role !== 'profesor' &&
-    bookingsForDate.some(b => b.userId === currentUser.id);
+    bookingsForDate.some(b => 
+      b.userId === currentUser.id || 
+      (currentUser.dni && b.userDni === currentUser.dni) ||
+      (currentUser.mail && b.userMail && b.userMail.toLowerCase() === currentUser.mail.toLowerCase())
+    );
 
   courtsContainer.innerHTML = '';
 
@@ -585,12 +589,23 @@ function renderCourts() {
       const item = document.createElement('div');
 
       if (booking) {
-        const isMine = currentUser && booking.userId === currentUser.id;
+        const isMine = currentUser && (
+          booking.userId === currentUser.id || 
+          (currentUser.dni && booking.userDni === currentUser.dni) ||
+          (currentUser.mail && booking.userMail && booking.userMail.toLowerCase() === currentUser.mail.toLowerCase())
+        );
         const isProfBooking = booking.userRole === 'profesor';
         item.className = `slot-item ${isMine ? 'booked-mine' : isProfBooking ? 'booked-prof' : 'booked'}`;
 
-        const canCancel =
-          currentUser && (booking.userId === currentUser.id || currentUser.role === 'profesor' || currentUser.role === 'admin');
+        const isPrivileged = currentUser && (
+          currentUser.role === 'profesor' || 
+          currentUser.role === 'admin' ||
+          currentUser.dni === '31610066' ||
+          currentUser.dni === '47039935' ||
+          currentUser.dni === '25410483'
+        );
+
+        const canCancel = currentUser && (isMine || isPrivileged);
 
         // Formato jugadores
         let playersDetail = '';
@@ -695,7 +710,11 @@ function renderMyBookings() {
     return;
   }
 
-  const mine = bookingsForDate.filter(b => b.userId === currentUser.id);
+  const mine = bookingsForDate.filter(b => 
+    b.userId === currentUser.id || 
+    (currentUser.dni && b.userDni === currentUser.dni) ||
+    (currentUser.mail && b.userMail && b.userMail.toLowerCase() === currentUser.mail.toLowerCase())
+  );
   if (mine.length === 0) {
     myBookingsList.innerHTML =
       '<p class="empty-msg">No tenés turnos reservados en la fecha seleccionada.</p>';
@@ -843,14 +862,17 @@ if (paymentForm) {
 
 if (btnCancelPayment) {
   btnCancelPayment.addEventListener('click', async () => {
-    if (pendingNonMemberBooking && pendingNonMemberBooking.id) {
-      await handleCancelBooking(pendingNonMemberBooking.id);
+    try {
+      if (pendingNonMemberBooking && pendingNonMemberBooking.id) {
+        await handleCancelBooking(pendingNonMemberBooking.id);
+      }
+    } finally {
+      if (paymentTimerInterval) {
+        clearInterval(paymentTimerInterval);
+        paymentTimerInterval = null;
+      }
+      paymentModal.classList.add('hidden');
     }
-    if (paymentTimerInterval) {
-      clearInterval(paymentTimerInterval);
-      paymentTimerInterval = null;
-    }
-    paymentModal.classList.add('hidden');
   });
 }
 
@@ -1090,12 +1112,20 @@ async function executeBooking(date, court, slot, modalidad, players) {
 }
 
 async function handleCancelBooking(bookingId) {
-  if (!currentUser) return;
+  if (!currentUser) {
+    showFeedback('Por favor iniciá sesión para gestionar tus turnos.', 'error');
+    return;
+  }
 
   if (backendAvailable) {
     try {
+      const q = new URLSearchParams({
+        userId: currentUser.id || '',
+        userDni: currentUser.dni || '',
+        userMail: currentUser.mail || ''
+      });
       const res = await fetch(
-        `/api/bookings/${encodeURIComponent(bookingId)}?userId=${encodeURIComponent(currentUser.id)}`,
+        `/api/bookings/${encodeURIComponent(bookingId)}?${q.toString()}`,
         { method: 'DELETE' }
       );
       const data = await res.json();
@@ -1107,7 +1137,7 @@ async function handleCancelBooking(bookingId) {
       await loadBookingsForSelectedDate();
       return;
     } catch (err) {
-      backendAvailable = false;
+      console.warn('Fallo petición backend al cancelar turno:', err);
     }
   }
 
