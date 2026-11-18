@@ -835,7 +835,11 @@ const server = http.createServer(async (req, res) => {
       return res.end('Recurso no encontrado');
     }
     const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' });
+    const headers = {
+      'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    };
+    res.writeHead(200, headers);
     res.end(content);
   });
 });

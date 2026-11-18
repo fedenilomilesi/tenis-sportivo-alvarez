@@ -43,6 +43,9 @@ let timeMode = 'real'; // 'real' | 'sim-20' | 'sim-21' | 'sim-18'
 let bookingsForDate = [];
 let backendAvailable = false;
 
+let pendingNonMemberBooking = null;
+let paymentTimerInterval = null;
+
 let cachedPlayersList = [];
 let pendingSlotSelection = null; // { date, court, slot }
 
@@ -474,7 +477,7 @@ function renderProfile() {
     privBox.style.background = '#fff7ed';
     privBox.style.color = '#9a3412';
     privBox.innerHTML =
-      '<strong>Condición No Socio:</strong> Podés reservar 1 turno por día a partir de las 21:00 hs. Una vez elegido el turno tenés <strong>5 minutos</strong> para transferir el arancel y adjuntar el comprobante para confirmarlo.';
+      '<strong>Condición No Socio:</strong> Podés reservar 1 turno por día a partir de las 21:00 hs. Una vez elegido el turno tenés <strong>10 minutos</strong> para transferir el arancel y adjuntar el comprobante para confirmarlo.';
   } else {
     privBox.className = 'privilege-box';
     privBox.style.borderColor = '#bbf7d0';
@@ -715,52 +718,95 @@ function renderMyBookings() {
   });
 }
 
-// --- Non-member payment timer logic (10 minutos) ---
+// --- Non-member payment timer logic (10 minutos con cuenta regresiva en vivo) ---
 function openPaymentModal(booking, extraInfo = {}) {
-  pendingNonMemberBooking = booking;
-  paymentModal.classList.remove('hidden');
+  pendingNonMemberBooking = booking || {};
+  const modal = document.getElementById('payment-modal');
+  const timerElem = document.getElementById('payment-timer');
+  if (modal) modal.classList.remove('hidden');
 
   // Actualizar datos bancarios y monto
   const bank = extraInfo.bankInfo || (config && config.bankInfo) || {};
-  if (document.getElementById('pay-bank-titular') && bank.titular) document.getElementById('pay-bank-titular').textContent = bank.titular;
-  if (document.getElementById('pay-bank-nombre') && bank.banco) document.getElementById('pay-bank-nombre').textContent = bank.banco;
-  if (document.getElementById('pay-bank-cuit') && bank.cuit) document.getElementById('pay-bank-cuit').textContent = bank.cuit;
-  if (document.getElementById('pay-bank-cbu') && bank.cbu) document.getElementById('pay-bank-cbu').textContent = bank.cbu;
-  if (document.getElementById('pay-bank-alias') && bank.alias) document.getElementById('pay-bank-alias').textContent = bank.alias;
+  const elTitular = document.getElementById('pay-bank-titular');
+  const elBanco = document.getElementById('pay-bank-nombre');
+  const elCuit = document.getElementById('pay-bank-cuit');
+  const elCbu = document.getElementById('pay-bank-cbu');
+  const elAlias = document.getElementById('pay-bank-alias');
 
-  const amount = booking.amountToPay || extraInfo.amountToPay || 4500;
-  if (document.getElementById('pay-amount-display')) {
-    document.getElementById('pay-amount-display').textContent = `$${Number(amount).toLocaleString('es-AR')}`;
+  if (elTitular && bank.titular) elTitular.textContent = bank.titular;
+  if (elBanco && bank.banco) elBanco.textContent = bank.banco;
+  if (elCuit && bank.cuit) elCuit.textContent = bank.cuit;
+  if (elCbu && bank.cbu) elCbu.textContent = bank.cbu;
+  if (elAlias && bank.alias) elAlias.textContent = bank.alias;
+
+  const amount = (booking && booking.amountToPay) || extraInfo.amountToPay || 4500;
+  const elAmount = document.getElementById('pay-amount-display');
+  if (elAmount) {
+    elAmount.textContent = `$${Number(amount).toLocaleString('es-AR')}`;
   }
 
-  const nonMembersCount = (booking.nonMembersInGroup || []).length || 1;
-  if (document.getElementById('pay-nonmembers-detail')) {
-    document.getElementById('pay-nonmembers-detail').textContent = `Arancel correspondiente a ${nonMembersCount} jugador/es no socio/s.`;
+  const nonMembersCount = (booking && Array.isArray(booking.nonMembersInGroup))
+    ? booking.nonMembersInGroup.length
+    : (extraInfo.nonMembersCount || 1);
+  const elNonMembers = document.getElementById('pay-nonmembers-detail');
+  if (elNonMembers) {
+    elNonMembers.textContent = `Arancel correspondiente a ${nonMembersCount} jugador/es no socio/s.`;
   }
 
-  let timeLeftSeconds = 10 * 60; // 10 minutos
+  // Limpiar temporizador previo
+  if (paymentTimerInterval) {
+    clearInterval(paymentTimerInterval);
+    paymentTimerInterval = null;
+  }
+
+  // Objetivo: exactamente 10 minutos (600 segundos) desde la creación
+  const tenMinutesMs = 10 * 60 * 1000;
+  let targetEndTime = Date.now() + tenMinutesMs;
+
+  if (booking && booking.expiresAt) {
+    const exp = new Date(booking.expiresAt).getTime();
+    // Si la fecha de expiración del servidor es válida y está dentro del rango
+    if (!isNaN(exp) && exp > Date.now()) {
+      targetEndTime = exp;
+    }
+  }
+
   function updateTimerText() {
-    const mins = Math.floor(timeLeftSeconds / 60);
-    const secs = timeLeftSeconds % 60;
-    paymentTimer.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-    if (timeLeftSeconds <= 0) {
-      clearInterval(paymentTimerInterval);
-      paymentModal.classList.add('hidden');
+    const currentElem = document.getElementById('payment-timer') || timerElem;
+    const now = Date.now();
+    const diffMs = targetEndTime - now;
+    const totalSecs = Math.max(0, Math.ceil(diffMs / 1000));
+
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+    if (currentElem) {
+      currentElem.textContent = formatted;
+    }
+
+    if (totalSecs <= 0) {
+      if (paymentTimerInterval) {
+        clearInterval(paymentTimerInterval);
+        paymentTimerInterval = null;
+      }
+      if (modal) modal.classList.add('hidden');
       showFeedback('Se cumplieron los 10 minutos límites para adjuntar el comprobante. El turno se ha liberado.', 'error');
       loadBookingsForSelectedDate();
     }
-    timeLeftSeconds--;
   }
 
+  // Llamada inmediata para mostrar 10:00 al instante
   updateTimerText();
-  clearInterval(paymentTimerInterval);
+
+  // Iniciar cuenta regresiva en vivo segundo a segundo
   paymentTimerInterval = setInterval(updateTimerText, 1000);
 }
 
 if (paymentForm) {
   paymentForm.addEventListener('submit', async e => {
     e.preventDefault();
-    if (!pendingNonMemberBooking) return;
+    if (!pendingNonMemberBooking || !pendingNonMemberBooking.id) return;
 
     const fileInput = document.getElementById('payment-file');
     const fileName = fileInput.files[0] ? fileInput.files[0].name : 'comprobante_transferencia.pdf';
@@ -779,7 +825,10 @@ if (paymentForm) {
         showFeedback(data.error || 'No se pudo verificar el comprobante.', 'error');
         return;
       }
-      clearInterval(paymentTimerInterval);
+      if (paymentTimerInterval) {
+        clearInterval(paymentTimerInterval);
+        paymentTimerInterval = null;
+      }
       paymentModal.classList.add('hidden');
       showFeedback(
         `¡Comprobante recibido y reserva confirmada! Te enviamos un correo a ${currentUser.mail} con los detalles y el recordatorio de cancelación.`,
@@ -794,10 +843,13 @@ if (paymentForm) {
 
 if (btnCancelPayment) {
   btnCancelPayment.addEventListener('click', async () => {
-    if (pendingNonMemberBooking) {
+    if (pendingNonMemberBooking && pendingNonMemberBooking.id) {
       await handleCancelBooking(pendingNonMemberBooking.id);
     }
-    clearInterval(paymentTimerInterval);
+    if (paymentTimerInterval) {
+      clearInterval(paymentTimerInterval);
+      paymentTimerInterval = null;
+    }
     paymentModal.classList.add('hidden');
   });
 }
