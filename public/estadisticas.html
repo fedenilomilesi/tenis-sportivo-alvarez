@@ -617,14 +617,6 @@
         console.error('Error cargando estadísticas:', err);
       }
     }
-            const sData = await sRes.json();
-            document.getElementById('kpi-padron').textContent = sData.total || 0;
-          }
-        } catch(e) {}
-      } catch (err) {
-        console.error(err);
-      }
-    }
 
     // Handle Padron file import
     document.getElementById('btn-import-file').addEventListener('click', async () => {
