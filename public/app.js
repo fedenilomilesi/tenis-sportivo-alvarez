@@ -43,8 +43,201 @@ let timeMode = 'real'; // 'real' | 'sim-20' | 'sim-21' | 'sim-18'
 let bookingsForDate = [];
 let backendAvailable = false;
 
-let pendingNonMemberBooking = null;
-let paymentTimerInterval = null;
+let cachedPlayersList = [];
+let pendingSlotSelection = null; // { date, court, slot }
+
+// Booking Modal Elements
+const bookingModal = document.getElementById('booking-modal');
+const modalCourtName = document.getElementById('modal-court-name');
+const modalSlotTime = document.getElementById('modal-slot-time');
+const modalHolderName = document.getElementById('modal-holder-name');
+const bookingPlayersForm = document.getElementById('booking-players-form');
+const radioSingles = document.getElementById('radio-singles');
+const radioDobles = document.getElementById('radio-dobles');
+const boxPlayer2 = document.getElementById('box-player-2');
+const boxPlayer3 = document.getElementById('box-player-3');
+const boxPlayer4 = document.getElementById('box-player-4');
+const selectPlayer2 = document.getElementById('select-player-2');
+const selectPlayer3 = document.getElementById('select-player-3');
+const selectPlayer4 = document.getElementById('select-player-4');
+const manualPlayer2 = document.getElementById('manual-player-2');
+const manualPlayer3 = document.getElementById('manual-player-3');
+const manualPlayer4 = document.getElementById('manual-player-4');
+const bookingNonMemberWarning = document.getElementById('booking-non-member-warning');
+const btnCloseBookingModal = document.getElementById('btn-close-booking-modal');
+const btnCancelModal = document.getElementById('btn-cancel-modal');
+
+async function loadPlayersList() {
+  if (backendAvailable) {
+    try {
+      const res = await fetch('/api/players-list');
+      if (res.ok) {
+        const data = await res.json();
+        cachedPlayersList = data.players || [];
+        return;
+      }
+    } catch(e) {}
+  }
+  // Fallback
+  const db = getLocalDb();
+  cachedPlayersList = (db.users || []).map(u => ({
+    dni: u.dni,
+    nombre: `${u.nombre} ${u.apellido}`,
+    isSocio: u.memberType === 'socio' || u.role === 'profesor' || u.role === 'admin'
+  }));
+}
+
+function populatePlayerSelect(selectElem) {
+  selectElem.innerHTML = '<option value="">-- Seleccionar de la lista de socios --</option>';
+  
+  // Socios de la base
+  cachedPlayersList.forEach(p => {
+    // No permitir seleccionarse a sí mismo como rival
+    if (currentUser && currentUser.dni === p.dni) return;
+    const opt = document.createElement('option');
+    opt.value = p.dni;
+    opt.textContent = `${p.nombre} (DNI ${p.dni}) ${p.isSocio ? '🎾 Socio' : 'No Socio'}`;
+    opt.setAttribute('data-name', p.nombre);
+    opt.setAttribute('data-is-socio', p.isSocio ? 'true' : 'false');
+    selectElem.appendChild(opt);
+  });
+
+  // Opción especial para No Socio no registrado
+  const optCustom = document.createElement('option');
+  optCustom.value = 'otro_no_socio';
+  optCustom.textContent = '➕ Ingresar otro jugador No Socio (manual)';
+  selectElem.appendChild(optCustom);
+}
+
+function setupPlayerSelectHandler(selectElem, manualBox) {
+  selectElem.addEventListener('change', () => {
+    if (selectElem.value === 'otro_no_socio') {
+      manualBox.classList.remove('hidden');
+    } else {
+      manualBox.classList.add('hidden');
+    }
+    checkNonMembersSelected();
+  });
+}
+
+function checkNonMembersSelected() {
+  let hasNonMember = currentUser && currentUser.memberType === 'no_socio';
+
+  const checkSelect = (sel, manBox, nameInp) => {
+    if (sel.value === 'otro_no_socio') {
+      hasNonMember = true;
+    } else if (sel.value) {
+      const opt = sel.options[sel.selectedIndex];
+      if (opt && opt.getAttribute('data-is-socio') === 'false') {
+        hasNonMember = true;
+      }
+    }
+  };
+
+  checkSelect(selectPlayer2, manualPlayer2, document.getElementById('manual-name-2'));
+  if (radioDobles.checked) {
+    checkSelect(selectPlayer3, manualPlayer3, document.getElementById('manual-name-3'));
+    checkSelect(selectPlayer4, manualPlayer4, document.getElementById('manual-name-4'));
+  }
+
+  if (hasNonMember) {
+    bookingNonMemberWarning.classList.remove('hidden');
+  } else {
+    bookingNonMemberWarning.classList.add('hidden');
+  }
+}
+
+function openBookingPlayersModal(date, court, slot) {
+  pendingSlotSelection = { date, court, slot };
+  modalCourtName.textContent = court;
+  modalSlotTime.textContent = slot;
+  modalHolderName.textContent = `${currentUser.nombre} ${currentUser.apellido} (${currentUser.memberType === 'no_socio' ? 'No Socio' : 'Socio SFCA'})`;
+
+  populatePlayerSelect(selectPlayer2);
+  populatePlayerSelect(selectPlayer3);
+  populatePlayerSelect(selectPlayer4);
+
+  radioSingles.checked = true;
+  boxPlayer3.classList.add('hidden');
+  boxPlayer4.classList.add('hidden');
+  manualPlayer2.classList.add('hidden');
+  manualPlayer3.classList.add('hidden');
+  manualPlayer4.classList.add('hidden');
+
+  checkNonMembersSelected();
+  bookingModal.classList.remove('hidden');
+}
+
+function closeBookingPlayersModal() {
+  pendingSlotSelection = null;
+  bookingModal.classList.add('hidden');
+}
+
+if (btnCloseBookingModal) btnCloseBookingModal.addEventListener('click', closeBookingPlayersModal);
+if (btnCancelModal) btnCancelModal.addEventListener('click', closeBookingPlayersModal);
+
+if (radioSingles && radioDobles) {
+  radioSingles.addEventListener('change', () => {
+    boxPlayer3.classList.add('hidden');
+    boxPlayer4.classList.add('hidden');
+    checkNonMembersSelected();
+  });
+  radioDobles.addEventListener('change', () => {
+    boxPlayer3.classList.remove('hidden');
+    boxPlayer4.classList.remove('hidden');
+    checkNonMembersSelected();
+  });
+}
+
+setupPlayerSelectHandler(selectPlayer2, manualPlayer2);
+setupPlayerSelectHandler(selectPlayer3, manualPlayer3);
+setupPlayerSelectHandler(selectPlayer4, manualPlayer4);
+
+if (bookingPlayersForm) {
+  bookingPlayersForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!pendingSlotSelection || !currentUser) return;
+
+    const modalidad = radioDobles.checked ? 'dobles' : 'singles';
+    const players = [];
+
+    // Helper to get player data
+    const getPlayerData = (selectElem, nameInput, dniInput, playerNum) => {
+      if (selectElem.value === 'otro_no_socio') {
+        const name = nameInput.value.trim();
+        const dni = dniInput.value.trim();
+        if (!name) throw new Error(`Por favor ingresá el nombre del Jugador ${playerNum}.`);
+        return { nombre: name, dni, isSocio: false };
+      } else if (selectElem.value) {
+        const opt = selectElem.options[selectElem.selectedIndex];
+        return {
+          nombre: opt.getAttribute('data-name'),
+          dni: selectElem.value,
+          isSocio: opt.getAttribute('data-is-socio') === 'true'
+        };
+      } else {
+        throw new Error(`Por favor seleccioná quién será el Jugador ${playerNum}.`);
+      }
+    };
+
+    try {
+      const p2 = getPlayerData(selectPlayer2, document.getElementById('manual-name-2'), document.getElementById('manual-dni-2'), 2);
+      players.push(p2);
+
+      if (modalidad === 'dobles') {
+        const p3 = getPlayerData(selectPlayer3, document.getElementById('manual-name-3'), document.getElementById('manual-dni-3'), 3);
+        const p4 = getPlayerData(selectPlayer4, document.getElementById('manual-name-4'), document.getElementById('manual-dni-4'), 4);
+        players.push(p3, p4);
+      }
+
+      const { date, court, slot } = pendingSlotSelection;
+      closeBookingPlayersModal();
+      await executeBooking(date, court, slot, modalidad, players);
+    } catch (err) {
+      showFeedback(err.message, 'error');
+    }
+  });
+}
 
 // DOM References
 const currentTimeDisplay = document.getElementById('current-time-display');
@@ -393,10 +586,19 @@ function renderCourts() {
         const isProfBooking = booking.userRole === 'profesor';
         item.className = `slot-item ${isMine ? 'booked-mine' : isProfBooking ? 'booked-prof' : 'booked'}`;
 
-        // Regla: Los usuarios comunes solo pueden cancelar SU propio turno.
-        // Los profesores o administradores tienen la facultad de liberar o cancelar turnos si es necesario.
         const canCancel =
           currentUser && (booking.userId === currentUser.id || currentUser.role === 'profesor' || currentUser.role === 'admin');
+
+        // Formato jugadores
+        let playersDetail = '';
+        if (booking.modalidad) {
+          const modLabel = booking.modalidad === 'dobles' ? 'Dobles' : 'Singles';
+          const names = [booking.userName];
+          if (Array.isArray(booking.players)) {
+            booking.players.forEach(p => names.push(p.nombre));
+          }
+          playersDetail = `<div style="font-size: 0.72rem; color: #475569; margin-top: 0.2rem;">👥 <strong>${modLabel}:</strong> ${names.join(' • ')}</div>`;
+        }
 
         item.innerHTML = `
           <div>
@@ -405,6 +607,7 @@ function renderCourts() {
               ${isProfBooking ? '🎾 <strong>Clase / Profesor:</strong> ' : 'Reservado por: '}
               <strong>${booking.userName}</strong>
             </div>
+            ${playersDetail}
           </div>
           <div>
             ${
@@ -699,40 +902,14 @@ async function loadBookingsForSelectedDate() {
 }
 
 async function handleCreateBooking(date, court, slot) {
-  // If user filled the form on the left but forgot to click "Guardar Datos e Ingresar", auto-register them!
   if (!currentUser) {
-    const nombreVal = document.getElementById('nombre').value.trim();
-    const apellidoVal = document.getElementById('apellido').value.trim();
-    const dniVal = document.getElementById('dni').value.trim();
-    const celularVal = document.getElementById('celular').value.trim();
-    const mailVal = document.getElementById('mail').value.trim();
-
-    if (nombreVal && apellidoVal && dniVal && celularVal && mailVal) {
-      try {
-        const memberTypeVal = document.getElementById('member-type') ? document.getElementById('member-type').value : 'socio';
-        currentUser = await registerOrUpdateUser({
-          nombre: nombreVal,
-          apellido: apellidoVal,
-          dni: dniVal,
-          celular: celularVal,
-          mail: mailVal,
-          memberType: memberTypeVal
-        });
-        localStorage.setItem('sfca_tenis_user', JSON.stringify(currentUser));
-        renderProfile();
-      } catch (err) {
-        showFeedback(err.message, 'error');
-        return;
-      }
-    } else {
-      showFeedback(
-        'Por favor completá tu registro o ingresá con tu Mail en el panel izquierdo para reservar.',
-        'error'
-      );
-      return;
-    }
+    showFeedback('Por favor ingresá con tu correo antes de reservar.', 'error');
+    return;
   }
+  openBookingPlayersModal(date, court, slot);
+}
 
+async function executeBooking(date, court, slot, modalidad, players) {
   if (backendAvailable) {
     try {
       const res = await fetch('/api/bookings', {
@@ -743,6 +920,8 @@ async function handleCreateBooking(date, court, slot) {
           date,
           court,
           slot,
+          modalidad,
+          players,
           simulatedNow: getEffectiveNow().toISOString()
         })
       });
@@ -756,10 +935,10 @@ async function handleCreateBooking(date, court, slot) {
       const booking = data.booking;
       if (booking.status === 'pendiente_pago') {
         openPaymentModal(booking);
-        showFeedback('Turno pre-reservado. Disponés de 5 minutos para subir el comprobante de transferencia.', 'success');
+        showFeedback('Turno pre-reservado. Se detectó jugador no socio: disponés de 5 minutos para adjuntar el comprobante.', 'success');
       } else {
         showFeedback(
-          `¡Turno reservado con éxito! Se envió la confirmación a ${currentUser.mail}. Recordá cancelarlo con anticipación si no lo vas a usar.`,
+          `¡Turno reservado con éxito! Se envió la confirmación con los jugadores a ${currentUser.mail}.`,
           'success'
         );
       }
@@ -800,14 +979,14 @@ async function handleCreateBooking(date, court, slot) {
     const userDayBookings = db.bookings.filter(b => b.date === date && b.userId === currentUser.id);
     if (userDayBookings.length >= 1) {
       showFeedback(
-        `Solo podés reservar 1 turno por día. Ya tenés reservado ${userDayBookings[0].slot} en ${userDayBookings[0].court}.`,
+        `Solo podés reservar 1 turno por día. Ya tenés reservado ${userDayDay[0]?.slot || ''}.`,
         'error'
       );
       return;
     }
   }
 
-  const isNoSocio = currentUser.memberType === 'no_socio';
+  const hasNonMember = (currentUser.memberType === 'no_socio') || players.some(p => !p.isSocio);
   const newBooking = {
     id: 'bk-' + Date.now(),
     date,
@@ -820,14 +999,16 @@ async function handleCreateBooking(date, court, slot) {
     userMail: currentUser.mail,
     userRole: currentUser.role,
     memberType: currentUser.memberType || 'socio',
-    status: isNoSocio ? 'pendiente_pago' : 'confirmada',
+    modalidad,
+    players,
+    status: hasNonMember ? 'pendiente_pago' : 'confirmada',
     createdAt: now.toISOString()
   };
 
   db.bookings.push(newBooking);
   saveLocalDb(db);
 
-  if (isNoSocio) {
+  if (hasNonMember) {
     openPaymentModal(newBooking);
   } else {
     showFeedback(
@@ -1023,6 +1204,7 @@ async function init() {
     }
   }
 
+  await loadPlayersList();
   await loadBookingsForSelectedDate();
 }
 

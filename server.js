@@ -219,6 +219,10 @@ function purgeExpiredBookings(db, now) {
 // Emulate Email Notification
 function sendConfirmationEmail(db, booking, user) {
   const isNoSocio = user.memberType === 'no_socio';
+  const playersListStr = Array.isArray(booking.players) && booking.players.length > 0
+    ? booking.players.map((p, idx) => `  ${idx + 2}. ${p.nombre} (${p.isSocio ? 'Socio' : 'No Socio'})`).join('\n')
+    : '  (No especificados)';
+
   const emailItem = {
     id: 'em-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
     to: user.mail,
@@ -233,7 +237,10 @@ Detalles de la Reserva:
 - Cancha: ${booking.court} (Polvo de Ladrillo)
 - Fecha: ${booking.date}
 - Turno: ${booking.slot}
-- Condición: ${isNoSocio ? 'No Socio (Pago por transferencia verificado)' : 'Socio de Tenis SFCA'}
+- Modalidad: ${booking.modalidad === 'dobles' ? 'Dobles (4 jugadores)' : 'Singles (2 jugadores)'}
+- Jugadores:
+  1. ${user.nombre} ${user.apellido} (Titular)
+${playersListStr}
 
 AVISO MUY IMPORTANTE:
 "Si por alguna razón no vas a poder usar el turno, por favor cancelalo a tiempo desde la web para que otro socio pueda aprovecharlo y disfrutar de la cancha."
@@ -284,6 +291,39 @@ const MIME_TYPES = {
 const server = http.createServer(async (req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = parsedUrl.pathname;
+
+  // GET /api/players-list (Lista unificada de socios y registrados para los desplegables de jugadores)
+  if (pathname === '/api/players-list' && req.method === 'GET') {
+    const db = readDb();
+    const padron = getSociosList();
+    const map = new Map();
+
+    // 1. Del padrón oficial
+    padron.forEach(s => {
+      const clean = cleanDni(s.dni);
+      map.set(clean, {
+        dni: clean,
+        nombre: s.nombre,
+        isSocio: true,
+        source: 'padron'
+      });
+    });
+
+    // 2. De los usuarios registrados en el sistema
+    db.users.forEach(u => {
+      const clean = cleanDni(u.dni);
+      const isSocio = u.role === 'profesor' || u.role === 'admin' || u.memberType === 'socio' || checkIsSocio(clean);
+      map.set(clean, {
+        dni: clean,
+        nombre: `${u.nombre} ${u.apellido}`,
+        isSocio,
+        source: 'user'
+      });
+    });
+
+    const list = Array.from(map.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
+    return sendJson(res, 200, { players: list });
+  }
 
   // GET /api/config
   if (pathname === '/api/config' && req.method === 'GET') {
@@ -471,7 +511,23 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
-      const isNoSocio = user.memberType === 'no_socio';
+      // Jugadores (modalidad singles o dobles)
+      const modalidad = body.modalidad === 'dobles' ? 'dobles' : 'singles';
+      const players = Array.isArray(body.players) ? body.players : [];
+
+      // Validar si hay algún no socio en el grupo que requiera transferencia
+      const nonMembersInGroup = [];
+      if (user.memberType === 'no_socio') {
+        nonMembersInGroup.push({ name: `${user.nombre} ${user.apellido}`, isHolder: true });
+      }
+      players.forEach(p => {
+        if (!p.isSocio && p.nombre && p.nombre.trim()) {
+          nonMembersInGroup.push({ name: p.nombre.trim(), dni: p.dni || '', isHolder: false });
+        }
+      });
+
+      const requiresPayment = nonMembersInGroup.length > 0;
+
       const newBooking = {
         id: 'bk-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
         date,
@@ -484,20 +540,23 @@ const server = http.createServer(async (req, res) => {
         userMail: user.mail,
         userRole: user.role,
         memberType: user.memberType || 'socio',
-        status: isNoSocio ? 'pendiente_pago' : 'confirmada',
+        modalidad,
+        players,
+        nonMembersInGroup,
+        status: requiresPayment ? 'pendiente_pago' : 'confirmada',
         paymentProof: null,
         createdAt: now.toISOString(),
-        expiresAt: isNoSocio ? new Date(now.getTime() + 5 * 60 * 1000).toISOString() : null
+        expiresAt: requiresPayment ? new Date(now.getTime() + 5 * 60 * 1000).toISOString() : null
       };
 
       db.bookings.push(newBooking);
 
-      if (!isNoSocio) {
+      if (!requiresPayment) {
         sendConfirmationEmail(db, newBooking, user);
       }
 
       writeDb(db);
-      return sendJson(res, 201, { booking: newBooking });
+      return sendJson(res, 201, { booking: newBooking, requiresPayment, nonMembersInGroup });
     } catch (e) {
       return sendJson(res, 400, { error: 'No se pudo procesar la reserva.' });
     }
