@@ -1,0 +1,60 @@
+{
+  "users": [
+    {
+      "id": "admin-fede",
+      "nombre": "Federico",
+      "apellido": "Milesi",
+      "dni": "31610066",
+      "celular": "3413441162",
+      "mail": "fedenilomilesi@gmail.com",
+      "role": "admin",
+      "memberType": "socio"
+    },
+    {
+      "id": "prof-jarno",
+      "nombre": "Jarno",
+      "apellido": "Cefarelli",
+      "dni": "47039935",
+      "celular": "3402521352",
+      "mail": "jarnocefarelli@gmail.com",
+      "role": "profesor",
+      "memberType": "socio"
+    },
+    {
+      "id": "prof-leonardo",
+      "nombre": "Leonardo",
+      "apellido": "Albertoli",
+      "dni": "25410483",
+      "celular": "3402521352",
+      "mail": "leonardoalbertoli@gmail.com",
+      "role": "profesor",
+      "memberType": "socio"
+    },
+    {
+      "id": "admin-sportivo",
+      "nombre": "Administración",
+      "apellido": "Sportivo FC",
+      "dni": "00000000",
+      "celular": "3402521352",
+      "mail": "admin@sportivoalvarez.com",
+      "role": "admin",
+      "memberType": "socio"
+    }
+  ],
+  "bookings": [],
+  "emails": [],
+  "pricing": {
+    "price1": 4500,
+    "price2": 8000,
+    "price3": 11000,
+    "price4": 14000
+  },
+  "bankInfo": {
+    "banco": "Banco Macro / Red Link",
+    "titular": "Sportivo Fútbol Club de Álvarez",
+    "cuit": "30-68123456-9",
+    "cbu": "2850381140094123456789",
+    "alias": "SPORTIVO.ALVAREZ.TENIS",
+    "nota": "Enviar comprobante con nombre del titular o subirlo en la web."
+  }
+}

@@ -165,6 +165,11 @@
         <div class="kpi-value" id="kpi-turnos">-</div>
         <span class="kpi-sub">En ambas canchas</span>
       </div>
+      <div class="kpi-card">
+        <span class="kpi-title">Mails Enviados</span>
+        <div class="kpi-value" id="kpi-emails" style="color: #475569;">0</div>
+        <span class="kpi-sub">Confirmaciones registradas</span>
+      </div>
     </div>
 
     <!-- Configuración de Tarifas de No Socios y Datos Bancarios -->
@@ -278,6 +283,35 @@
       </div>
     </div>
 
+    <!-- Tabla de Todas las Reservas en el Sistema -->
+    <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #3b82f6;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <div>
+          <h2>Listado de Reservas en la Base de Datos</h2>
+          <p class="toolbar-desc">Todas las reservas registradas (Cancha, Fecha, Horario, Titular, Jugadores, Estado y Acción).</p>
+        </div>
+        <span id="all-bookings-count" style="font-weight: 700; color: #1d4ed8; background: #dbeafe; padding: 0.35rem 0.75rem; border-radius: 999px; font-size: 0.85rem;">- Reservas</span>
+      </div>
+
+      <div class="table-container">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Fecha y Horario</th>
+              <th>Cancha</th>
+              <th>Titular Reserva</th>
+              <th>Modalidad y Jugadores</th>
+              <th>Estado</th>
+              <th>Acción Admin</th>
+            </tr>
+          </thead>
+          <tbody id="all-bookings-body">
+            <tr><td colspan="6" style="text-align: center; color: #94a3b8;">Cargando reservas...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Ranking Table & Detection of slot locking -->
     <div class="card" style="margin-bottom: 1.5rem;">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
@@ -339,151 +373,250 @@
   </main>
 
   <script>
+    async function cancelBookingByAdmin(bookingId) {
+      if (!confirm('¿Estás seguro de que deseás cancelar esta reserva como Administrador? El turno volverá a estar libre.')) return;
+      try {
+        const res = await fetch(`/api/bookings/${encodeURIComponent(bookingId)}?userDni=31610066`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert('Reserva cancelada correctamente.');
+          loadStats();
+        } else {
+          alert(data.error || 'No se pudo cancelar la reserva.');
+        }
+      } catch (err) {
+        alert('Error de conexión al cancelar la reserva.');
+      }
+    }
+
     async function loadStats() {
       try {
         const res = await fetch('/api/stats');
         if (!res.ok) throw new Error('Error al obtener datos');
         const data = await res.json();
 
-        document.getElementById('kpi-socios').textContent = data.sociosCount;
-        document.getElementById('kpi-nosocios').textContent = data.noSociosCount;
-        document.getElementById('kpi-turnos').textContent = data.totalBookings;
-        document.getElementById('kpi-emails').textContent = (data.recentEmails || []).length;
+        const setTxt = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val;
+        };
+
+        setTxt('kpi-socios', data.sociosCount || 0);
+        setTxt('kpi-nosocios', data.noSociosCount || 0);
+        setTxt('kpi-turnos', data.totalBookings || 0);
+        setTxt('kpi-emails', (data.recentEmails || []).length);
+
+        // Populate all bookings table
+        const bkBody = document.getElementById('all-bookings-body');
+        const bkCount = document.getElementById('all-bookings-count');
+        const bookingsList = data.allBookings || [];
+
+        if (bkCount) bkCount.textContent = `${bookingsList.length} Reservas`;
+        if (bkBody) {
+          if (bookingsList.length > 0) {
+            bkBody.innerHTML = '';
+            bookingsList.forEach(b => {
+              const tr = document.createElement('tr');
+              const isPend = b.status === 'pendiente_pago';
+              const modLabel = b.modalidad === 'dobles' ? 'Dobles (4 jug.)' : 'Singles (2 jug.)';
+              let playersStr = b.userName;
+              if (Array.isArray(b.players) && b.players.length > 0) {
+                playersStr += ' vs ' + b.players.map(p => `${p.nombre} (${p.isSocio ? 'Socio' : 'No Socio'})`).join(', ');
+              }
+
+              tr.innerHTML = `
+                <td>
+                  <strong>${b.date}</strong><br>
+                  <span style="color:#2563eb; font-weight:700;">${b.slot}</span>
+                </td>
+                <td><strong>${b.court}</strong></td>
+                <td>
+                  <strong>${b.userName}</strong><br>
+                  <small style="color:#64748b;">DNI: ${b.userDni || '-'} • ${b.userMail || ''}</small>
+                </td>
+                <td>
+                  <span style="font-size:0.8rem; font-weight:600; color:#475569;">${modLabel}</span><br>
+                  <small style="color:#334155;">${playersStr}</small>
+                </td>
+                <td>
+                  <span class="${isPend ? 'badge-nosocio' : 'badge-normal'}">
+                    ${isPend ? '⏳ Pendiente Pago' : '✅ Confirmada'}
+                  </span>
+                </td>
+                <td>
+                  <button type="button" class="btn-cancel" style="padding: 0.35rem 0.7rem; font-size: 0.78rem;" onclick="cancelBookingByAdmin('${b.id}')">
+                    Cancelar Turno
+                  </button>
+                </td>
+              `;
+              bkBody.appendChild(tr);
+            });
+          } else {
+            bkBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 1.5rem;">No hay turnos reservados en este momento.</td></tr>';
+          }
+        }
 
         // Populate registered users table
         const regBody = document.getElementById('registered-users-body');
         const regCount = document.getElementById('registered-users-count');
         if (data.registeredUsers && data.registeredUsers.length > 0) {
-          regCount.textContent = `${data.registeredUsers.length} Usuarios Registrados`;
-          regBody.innerHTML = '';
-          data.registeredUsers.forEach(u => {
-            const tr = document.createElement('tr');
-            const isNoSocio = u.memberType === 'no_socio';
-            const isProf = u.role === 'profesor';
-            const isAdmin = u.role === 'admin';
-            tr.innerHTML = `
-              <td><strong>${u.nombre} ${u.apellido}</strong></td>
-              <td>${u.dni}</td>
-              <td>${u.celular || '-'}</td>
-              <td><a href="mailto:${u.mail}" style="color: #2563eb; text-decoration: none;">${u.mail}</a></td>
-              <td>
-                <span class="${isNoSocio ? 'badge-nosocio' : 'badge-socio'}">${isNoSocio ? 'No Socio (Transf.)' : 'Socio SFCA'}</span>
-              </td>
-              <td>
-                <span style="font-weight: 700; color: ${isAdmin ? '#7c3aed' : isProf ? '#b45309' : '#475569'};">
-                  ${isAdmin ? '🛡️ Administrador' : isProf ? '🎾 Profesor Oficial' : 'Jugador / Socio'}
-                </span>
-              </td>
-            `;
-            regBody.appendChild(tr);
-          });
-        } else {
+          if (regCount) regCount.textContent = `${data.registeredUsers.length} Usuarios Registrados`;
+          if (regBody) {
+            regBody.innerHTML = '';
+            data.registeredUsers.forEach(u => {
+              const tr = document.createElement('tr');
+              const isNoSocio = u.memberType === 'no_socio';
+              const isProf = u.role === 'profesor';
+              const isAdmin = u.role === 'admin';
+              tr.innerHTML = `
+                <td><strong>${u.nombre} ${u.apellido}</strong></td>
+                <td>${u.dni}</td>
+                <td>${u.celular || '-'}</td>
+                <td><a href="mailto:${u.mail}" style="color: #2563eb; text-decoration: none;">${u.mail}</a></td>
+                <td>
+                  <span class="${isNoSocio ? 'badge-nosocio' : 'badge-socio'}">${isNoSocio ? 'No Socio (Transf.)' : 'Socio SFCA'}</span>
+                </td>
+                <td>
+                  <span style="font-weight: 700; color: ${isAdmin ? '#7c3aed' : isProf ? '#b45309' : '#475569'};">
+                    ${isAdmin ? '🛡️ Administrador' : isProf ? '🎾 Profesor Oficial' : 'Jugador / Socio'}
+                  </span>
+                </td>
+              `;
+              regBody.appendChild(tr);
+            });
+          }
+        } else if (regBody) {
           regBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #94a3b8;">No hay usuarios registrados aún.</td></tr>';
         }
 
         // Populate ranking table
         const tbody = document.getElementById('ranking-table-body');
-        if (!data.userRanking || data.userRanking.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #94a3b8;">Aún no se registraron reservas en el sistema.</td></tr>';
-        } else {
-          tbody.innerHTML = '';
-          data.userRanking.forEach(u => {
-            const tr = document.createElement('tr');
-            const isNoSocio = u.memberType === 'no_socio';
-            tr.innerHTML = `
-              <td>
-                <strong>${u.name}</strong><br>
-                <small style="color: #64748b;">DNI: ${u.dni}</small>
-              </td>
-              <td>
-                <small>${u.mail}</small>
-              </td>
-              <td>
-                <span class="${isNoSocio ? 'badge-nosocio' : 'badge-socio'}">${isNoSocio ? 'No Socio' : 'Socio SFCA'}</span>
-              </td>
-              <td><strong>${u.totalBookings}</strong></td>
-              <td>${u.favoriteSlot || '-'}</td>
-              <td><strong>${u.dominancePct}%</strong></td>
-              <td>
-                ${u.isSlotLocker
-                  ? '<span class="badge-locker">⚠️ Posible bloqueo reiterado</span>'
-                  : '<span class="badge-normal">✓ Uso variado</span>'
-                }
-              </td>
-            `;
-            tbody.appendChild(tr);
-          });
+        if (tbody) {
+          if (!data.userRanking || data.userRanking.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #94a3b8;">Aún no se registraron reservas en el sistema.</td></tr>';
+          } else {
+            tbody.innerHTML = '';
+            data.userRanking.forEach(u => {
+              const tr = document.createElement('tr');
+              const isNoSocio = u.memberType === 'no_socio';
+              tr.innerHTML = `
+                <td>
+                  <strong>${u.name}</strong><br>
+                  <small style="color: #64748b;">DNI: ${u.dni}</small>
+                </td>
+                <td>
+                  <small>${u.mail}</small>
+                </td>
+                <td>
+                  <span class="${isNoSocio ? 'badge-nosocio' : 'badge-socio'}">${isNoSocio ? 'No Socio' : 'Socio SFCA'}</span>
+                </td>
+                <td><strong>${u.totalBookings}</strong></td>
+                <td>${u.favoriteSlot || '-'}</td>
+                <td><strong>${u.dominancePct}%</strong></td>
+                <td>
+                  ${u.isSlotLocker
+                    ? '<span class="badge-locker">⚠️ Posible bloqueo reiterado</span>'
+                    : '<span class="badge-normal">✓ Uso variado</span>'
+                  }
+                </td>
+              `;
+              tbody.appendChild(tr);
+            });
+          }
         }
 
         // Demand by slot
         const sBody = document.getElementById('slots-demand-body');
-        const slots = [
-          '14:00 a 15:30 hs',
-          '15:30 a 17:00 hs',
-          '17:00 a 18:30 hs',
-          '18:30 a 20:00 hs',
-          '20:00 a 21:30 hs',
-          '21:30 a 23:00 hs'
-        ];
-        sBody.innerHTML = '';
-        slots.forEach(slot => {
-          const count = (data.slotStats && data.slotStats[slot]) || 0;
-          const pct = data.totalBookings > 0 ? Math.round((count / data.totalBookings) * 100) : 0;
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td><strong>${slot}</strong></td>
-            <td><strong>${count}</strong> reservas</td>
-            <td>
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <div style="background: #e2e8f0; height: 8px; width: 120px; border-radius: 4px; overflow: hidden;">
-                  <div style="background: var(--primary); height: 100%; width: ${pct}%;"></div>
+        if (sBody) {
+          const slots = [
+            '14:00 a 15:30 hs',
+            '15:30 a 17:00 hs',
+            '17:00 a 18:30 hs',
+            '18:30 a 20:00 hs',
+            '20:00 a 21:30 hs',
+            '21:30 a 23:00 hs'
+          ];
+          sBody.innerHTML = '';
+          slots.forEach(slot => {
+            const count = (data.slotStats && data.slotStats[slot]) || 0;
+            const pct = data.totalBookings > 0 ? Math.round((count / data.totalBookings) * 100) : 0;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td><strong>${slot}</strong></td>
+              <td><strong>${count}</strong> reservas</td>
+              <td>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div style="background: #e2e8f0; height: 8px; width: 120px; border-radius: 4px; overflow: hidden;">
+                    <div style="background: var(--primary); height: 100%; width: ${pct}%;"></div>
+                  </div>
+                  <span>${pct}%</span>
                 </div>
-                <span>${pct}%</span>
-              </div>
-            </td>
-          `;
-          sBody.appendChild(tr);
-        });
+              </td>
+            `;
+            sBody.appendChild(tr);
+          });
+        }
 
         // Emails log
         const emailContainer = document.getElementById('emails-log-list');
-        if (!data.recentEmails || data.recentEmails.length === 0) {
-          emailContainer.innerHTML = '<p style="color: #94a3b8;">No se registraron envíos de correo aún.</p>';
-        } else {
-          emailContainer.innerHTML = '';
-          data.recentEmails.forEach(em => {
-            const box = document.createElement('div');
-            box.innerHTML = `
-              <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#475569;">
-                <span><strong>Para:</strong> ${em.to}</span>
-                <span>${new Date(em.date).toLocaleString('es-AR')}</span>
-              </div>
-              <div class="email-preview-box">${em.content}</div>
-            `;
-            emailContainer.appendChild(box);
-          });
+        if (emailContainer) {
+          if (!data.recentEmails || data.recentEmails.length === 0) {
+            emailContainer.innerHTML = '<p style="color: #94a3b8;">No se registraron envíos de correo aún.</p>';
+          } else {
+            emailContainer.innerHTML = '';
+            data.recentEmails.forEach(em => {
+              const box = document.createElement('div');
+              box.innerHTML = `
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#475569;">
+                  <span><strong>Para:</strong> ${em.to}</span>
+                  <span>${new Date(em.date).toLocaleString('es-AR')}</span>
+                </div>
+                <div class="email-preview-box">${em.content}</div>
+              `;
+              emailContainer.appendChild(box);
+            });
+          }
         }
 
         // Cargar tarifas y datos bancarios en el formulario de configuración
         if (data.pricing) {
-          document.getElementById('cfg-price-1').value = data.pricing.price1 || 4500;
-          document.getElementById('cfg-price-2').value = data.pricing.price2 || 8000;
-          document.getElementById('cfg-price-3').value = data.pricing.price3 || 11000;
-          document.getElementById('cfg-price-4').value = data.pricing.price4 || 14000;
+          const p1 = document.getElementById('cfg-price-1');
+          const p2 = document.getElementById('cfg-price-2');
+          const p3 = document.getElementById('cfg-price-3');
+          const p4 = document.getElementById('cfg-price-4');
+          if (p1) p1.value = data.pricing.price1 || 4500;
+          if (p2) p2.value = data.pricing.price2 || 8000;
+          if (p3) p3.value = data.pricing.price3 || 11000;
+          if (p4) p4.value = data.pricing.price4 || 14000;
         }
         if (data.bankInfo) {
-          document.getElementById('cfg-bank-banco').value = data.bankInfo.banco || '';
-          document.getElementById('cfg-bank-titular').value = data.bankInfo.titular || '';
-          document.getElementById('cfg-bank-cuit').value = data.bankInfo.cuit || '';
-          document.getElementById('cfg-bank-cbu').value = data.bankInfo.cbu || '';
-          document.getElementById('cfg-bank-alias').value = data.bankInfo.alias || '';
-          document.getElementById('cfg-bank-nota').value = data.bankInfo.nota || '';
+          const b1 = document.getElementById('cfg-bank-banco');
+          const b2 = document.getElementById('cfg-bank-titular');
+          const b3 = document.getElementById('cfg-bank-cuit');
+          const b4 = document.getElementById('cfg-bank-cbu');
+          const b5 = document.getElementById('cfg-bank-alias');
+          const b6 = document.getElementById('cfg-bank-nota');
+          if (b1) b1.value = data.bankInfo.banco || '';
+          if (b2) b2.value = data.bankInfo.titular || '';
+          if (b3) b3.value = data.bankInfo.cuit || '';
+          if (b4) b4.value = data.bankInfo.cbu || '';
+          if (b5) b5.value = data.bankInfo.alias || '';
+          if (b6) b6.value = data.bankInfo.nota || '';
         }
 
         // Load socios padrón count
         try {
           const sRes = await fetch('/api/socios');
           if (sRes.ok) {
+            const sData = await sRes.json();
+            setTxt('kpi-padron', sData.total || 0);
+          }
+        } catch(e) {}
+      } catch (err) {
+        console.error('Error cargando estadísticas:', err);
+      }
+    }
             const sData = await sRes.json();
             document.getElementById('kpi-padron').textContent = sData.total || 0;
           }

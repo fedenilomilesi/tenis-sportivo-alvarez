@@ -820,6 +820,7 @@ const server = http.createServer(async (req, res) => {
       sociosCount,
       noSociosCount,
       totalBookings,
+      allBookings: db.bookings,
       registeredUsers: db.users.map(u => ({
         id: u.id,
         nombre: u.nombre,
