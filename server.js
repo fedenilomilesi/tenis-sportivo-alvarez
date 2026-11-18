@@ -20,8 +20,19 @@ const SLOTS = [
 const COURTS = ['Cancha 1', 'Cancha 2'];
 
 const PROF_DNIS = ['47039935', '25410483'];
+const ADMIN_DNIS = ['31610066', '00000000'];
 
 const DEFAULT_USERS = [
+  {
+    id: 'admin-fede',
+    nombre: 'Federico',
+    apellido: 'Milesi',
+    dni: '31610066',
+    celular: '3413441162',
+    mail: 'fedenilomilesi@gmail.com',
+    role: 'admin',
+    memberType: 'socio'
+  },
   {
     id: 'prof-jarno',
     nombre: 'Jarno',
@@ -83,6 +94,11 @@ function readDb() {
 function writeDb(data) {
   ensureDb();
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
+function isAdminUser(dni) {
+  const clean = String(dni || '').replace(/\D/g, '');
+  return ADMIN_DNIS.includes(clean);
 }
 
 function isProfessorUser(nombre, apellido, dni) {
@@ -314,10 +330,11 @@ const server = http.createServer(async (req, res) => {
       }
 
       let user = userByDni || userByMail;
-      const isProf = isProfessorUser(nombre, apellido, dni) || (user && user.role === 'profesor');
+      const isAdmin = isAdminUser(dni) || (user && user.role === 'admin');
+      const isProf = !isAdmin && (isProfessorUser(nombre, apellido, dni) || (user && user.role === 'profesor'));
 
       // Cruce automático con el padrón oficial de socios de tenis por DNI
-      const isRegisteredSocio = isProf || checkIsSocio(dni);
+      const isRegisteredSocio = isAdmin || isProf || checkIsSocio(dni);
       const memberType = isRegisteredSocio ? 'socio' : 'no_socio';
 
       if (user) {
@@ -327,7 +344,8 @@ const server = http.createServer(async (req, res) => {
         user.celular = celular;
         user.mail = mail;
         user.memberType = memberType;
-        if (isProf) user.role = 'profesor';
+        if (isAdmin) user.role = 'admin';
+        else if (isProf) user.role = 'profesor';
       } else {
         user = {
           id: 'usr-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
@@ -337,7 +355,7 @@ const server = http.createServer(async (req, res) => {
           celular,
           mail,
           memberType,
-          role: isProf ? 'profesor' : 'socio'
+          role: isAdmin ? 'admin' : isProf ? 'profesor' : 'socio'
         };
         db.users.push(user);
       }
@@ -368,8 +386,13 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 404, { error: 'No se encontró una cuenta con ese correo electrónico o DNI. Por favor completá el registro inicial una sola vez.' });
       }
 
-      // Re-verificar si es profe por DNI al loguearse
-      if (PROF_DNIS.includes(cleanDni(user.dni)) || isProfessorUser(user.nombre, user.apellido, user.dni)) {
+      // Re-verificar si es admin o profe por DNI al loguearse
+      const userCleanDni = cleanDni(user.dni);
+      if (isAdminUser(userCleanDni)) {
+        user.role = 'admin';
+        user.memberType = 'socio';
+        writeDb(db);
+      } else if (PROF_DNIS.includes(userCleanDni) || isProfessorUser(user.nombre, user.apellido, user.dni)) {
         user.role = 'profesor';
         user.memberType = 'socio';
         writeDb(db);
