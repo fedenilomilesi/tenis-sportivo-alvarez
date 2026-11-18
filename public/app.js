@@ -115,17 +115,7 @@ function isProfessorName(nombre, apellido) {
 
 // Returns current effective Date (either real clock or simulated time today)
 function getEffectiveNow() {
-  const real = new Date();
-  if (timeMode === 'real') return real;
-  const simulated = new Date(real.getFullYear(), real.getMonth(), real.getDate(), 0, 0, 0);
-  if (timeMode === 'sim-20') {
-    simulated.setHours(20, 15, 0);
-  } else if (timeMode === 'sim-21') {
-    simulated.setHours(21, 15, 0);
-  } else if (timeMode === 'sim-18') {
-    simulated.setHours(18, 0, 0);
-  }
-  return simulated;
+  return new Date();
 }
 
 function formatDateYMD(dateObj) {
@@ -256,14 +246,9 @@ function renderProfile() {
   const isProf = currentUser.role === 'profesor';
   const isAdmin = currentUser.role === 'admin';
 
-  // Solo profesores o administradores tienen acceso a panel / pruebas avanzadas
+  // Solo profesores o administradores tienen acceso a panel
   if (navAdminBtn) {
     navAdminBtn.style.display = (isProf || isAdmin) ? 'inline-flex' : 'none';
-  }
-  if (simControls) {
-    // Si querés activar simulación de horarios, podés agregarlo con ?demo=true en la url
-    const hasDemoParam = new URLSearchParams(window.location.search).has('demo');
-    simControls.style.display = (hasDemoParam || isAdmin) ? 'flex' : 'none';
   }
 
   const badge = document.getElementById('profile-role-badge');
@@ -1000,12 +985,6 @@ tabTomorrow.addEventListener('click', () => {
   selectedDayTarget = 'tomorrow';
   tabTomorrow.classList.add('active');
   tabToday.classList.remove('active');
-  loadBookingsForSelectedDate();
-});
-
-timeModeSelect.addEventListener('change', e => {
-  timeMode = e.target.value;
-  updateClockAndLabels();
   loadBookingsForSelectedDate();
 });
 
