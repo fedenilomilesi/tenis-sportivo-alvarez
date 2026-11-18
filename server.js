@@ -294,7 +294,26 @@ const server = http.createServer(async (req, res) => {
       }
 
       const db = readDb();
-      let user = db.users.find(u => u.mail === mail || u.dni === dni);
+      
+      // Validación estricta de unicidad 1 DNI <-> 1 solo Mail
+      const userByDni = db.users.find(u => u.dni === dni);
+      const userByMail = db.users.find(u => u.mail === mail);
+
+      // Si el DNI ya está registrado con otro mail diferente, rechazar
+      if (userByDni && userByDni.mail !== mail) {
+        return sendJson(res, 409, {
+          error: `El DNI ${dni} ya se encuentra registrado con el correo: ${userByDni.mail}. Para ingresar usá ese correo o comunicate con el club.`
+        });
+      }
+
+      // Si el Mail ya está registrado con otro DNI diferente, rechazar
+      if (userByMail && userByMail.dni !== dni) {
+        return sendJson(res, 409, {
+          error: `El correo ${mail} ya está asociado al DNI ${userByMail.dni}. Cada documento solo puede tener 1 único correo electrónico.`
+        });
+      }
+
+      let user = userByDni || userByMail;
       const isProf = isProfessorUser(nombre, apellido, dni) || (user && user.role === 'profesor');
 
       // Cruce automático con el padrón oficial de socios de tenis por DNI
