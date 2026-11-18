@@ -95,81 +95,91 @@ function isProfessorUser(nombre, apellido, dni) {
   );
 }
 
-function parseLocalDate(dateStr) {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d, 0, 0, 0, 0);
+// Obtiene fecha y hora precisa en zona horaria Argentina (GMT-3)
+function getArgentinaTime(dateInput = new Date()) {
+  const d = new Date(dateInput);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).formatToParts(d);
+
+  const m = {};
+  parts.forEach(p => m[p.type] = p.value);
+  return {
+    year: parseInt(m.year, 10),
+    month: parseInt(m.month, 10),
+    day: parseInt(m.day, 10),
+    hour: parseInt(m.hour, 10),
+    minute: parseInt(m.minute, 10),
+    second: parseInt(m.second, 10)
+  };
 }
 
-function getSlotStartTime(dateStr, slotStr) {
+// Retorna timestamp UTC exacto para una fecha y hora de Argentina (GMT-3)
+function getArgTimestamp(year, month, day, hour = 0, minute = 0, second = 0) {
+  return Date.UTC(year, month - 1, day, hour + 3, minute, second, 0);
+}
+
+function getSlotStartTimestamp(dateStr, slotStr) {
   const match = slotStr.match(/^(\d{1,2}):(\d{2})/);
-  if (!match) return null;
+  if (!match) return 0;
   const [y, m, d] = dateStr.split('-').map(Number);
   const hour = parseInt(match[1], 10);
   const minute = parseInt(match[2], 10);
-  return new Date(y, m - 1, d, hour, minute, 0, 0);
+  return getArgTimestamp(y, m, d, hour, minute, 0);
 }
 
-function formatDateStr(dateObj) {
-  const y = dateObj.getFullYear();
-  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const d = String(dateObj.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
+function checkBookingWindow(targetDateStr, role, nowInput) {
+  const [ty, tm, td] = targetDateStr.split('-').map(Number);
+  const argNow = getArgentinaTime(nowInput);
+  const nowTs = getArgTimestamp(argNow.year, argNow.month, argNow.day, argNow.hour, argNow.minute, argNow.second);
 
-function checkBookingWindow(targetDateStr, role, currentNow) {
-  const targetDate = parseLocalDate(targetDateStr);
-  const todayStart = new Date(currentNow.getFullYear(), currentNow.getMonth(), currentNow.getDate(), 0, 0, 0, 0);
+  // Inicio del día de hoy en Argentina
+  const todayStartTs = getArgTimestamp(argNow.year, argNow.month, argNow.day, 0, 0, 0);
+  const targetDayStartTs = getArgTimestamp(ty, tm, td, 0, 0, 0);
 
-  if (targetDate < todayStart) {
+  if (targetDayStartTs < todayStartTs) {
     return {
       allowed: false,
       reason: 'No se pueden reservar turnos en fechas pasadas.'
     };
   }
 
+  // Apertura: día anterior a las 20:00 (profesor) o 21:00 (socio)
   const openHour = role === 'profesor' ? 20 : 21;
-  const openTime = new Date(
-    targetDate.getFullYear(),
-    targetDate.getMonth(),
-    targetDate.getDate() - 1,
-    openHour,
-    0,
-    0,
-    0
-  );
+  // Calculamos el día anterior en Argentina
+  const prevDayDate = new Date(ty, tm - 1, td - 1);
+  const py = prevDayDate.getFullYear();
+  const pm = prevDayDate.getMonth() + 1;
+  const pd = prevDayDate.getDate();
 
-  const closeTime = new Date(
-    targetDate.getFullYear(),
-    targetDate.getMonth(),
-    targetDate.getDate(),
-    23,
-    59,
-    59,
-    999
-  );
+  const openTimeTs = getArgTimestamp(py, pm, pd, openHour, 0, 0);
+  const closeTimeTs = getArgTimestamp(ty, tm, td, 23, 59, 59);
 
-  if (currentNow < openTime) {
-    const prevDayStr = formatDateStr(new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() - 1));
+  if (nowTs < openTimeTs) {
+    const prevDayStr = `${py}-${String(pm).padStart(2, '0')}-${String(pd).padStart(2, '0')}`;
     return {
       allowed: false,
-      openTimeIso: openTime.toISOString(),
       reason: role === 'profesor'
         ? `La reserva prioritaria para profesores del día ${targetDateStr} se habilita el ${prevDayStr} a las 20:00 hs (1 hora antes que al resto).`
         : `La reserva para el día ${targetDateStr} se habilita el día anterior (${prevDayStr}) a las 21:00 hs. No se pueden reservar turnos hacia adelante.`
     };
   }
 
-  if (currentNow > closeTime) {
+  if (nowTs > closeTimeTs) {
     return {
       allowed: false,
       reason: 'El día seleccionado ya ha finalizado.'
     };
   }
 
-  return {
-    allowed: true,
-    openTimeIso: openTime.toISOString()
-  };
+  return { allowed: true };
 }
 
 // Cleanup pending unconfirmed non-member bookings older than 5 minutes
@@ -393,8 +403,9 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 403, { error: windowCheck.reason });
       }
 
-      const slotStartTime = getSlotStartTime(date, slot);
-      if (slotStartTime && slotStartTime <= now) {
+      const slotStartTs = getSlotStartTimestamp(date, slot);
+      const nowTs = new Date(now).getTime();
+      if (slotStartTs && slotStartTs <= nowTs) {
         return sendJson(res, 400, { error: 'No se pueden reservar turnos cuyo horario ya haya comenzado o finalizado.' });
       }
 
