@@ -167,6 +167,69 @@
       </div>
     </div>
 
+    <!-- Configuración de Tarifas de No Socios y Datos Bancarios -->
+    <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #f59e0b;">
+      <h2>Configuración de Aranceles (No Socios) y Cuenta Bancaria de Transferencia</h2>
+      <p class="toolbar-desc">
+        Como administrador podés definir el costo según la cantidad de personas No Socias en la cancha y los datos de CBU/Alias a los que deben transferir.
+      </p>
+
+      <form id="admin-settings-form" style="margin-top: 1rem;">
+        <h3 style="font-size: 1rem; color: #1e293b; margin-bottom: 0.75rem;">💰 Aranceles según cantidad de No Socios en el Turno:</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">1 persona No Socia ($):</label>
+            <input type="number" id="cfg-price-1" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">2 personas No Socias ($):</label>
+            <input type="number" id="cfg-price-2" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">3 personas No Socias ($):</label>
+            <input type="number" id="cfg-price-3" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">4 personas No Socias ($):</label>
+            <input type="number" id="cfg-price-4" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
+          </div>
+        </div>
+
+        <h3 style="font-size: 1rem; color: #1e293b; margin-bottom: 0.75rem;">🏦 Datos de la Cuenta Bancaria para Transferencias:</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">Banco / Entidad:</label>
+            <input type="text" id="cfg-bank-banco" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">Titular de la Cuenta:</label>
+            <input type="text" id="cfg-bank-titular" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">CUIT:</label>
+            <input type="text" id="cfg-bank-cuit" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">CBU:</label>
+            <input type="text" id="cfg-bank-cbu" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">Alias:</label>
+            <input type="text" id="cfg-bank-alias" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">Nota / Indicación adicional:</label>
+            <input type="text" id="cfg-bank-nota" placeholder="Ej: Subir comprobante con 10 min de límite" style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+          <button type="submit" class="btn-primary" style="background: #d97706;">Guardar Aranceles y Datos Bancarios</button>
+          <span id="cfg-save-feedback" style="font-size: 0.88rem; font-weight: 600;"></span>
+        </div>
+      </form>
+    </div>
+
     <!-- Padrón de Socios Upload / Import Box -->
     <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #2563eb;">
       <h2>Cargar / Actualizar Padrón de Socios de Tenis</h2>
@@ -401,6 +464,22 @@
           });
         }
 
+        // Cargar tarifas y datos bancarios en el formulario de configuración
+        if (data.pricing) {
+          document.getElementById('cfg-price-1').value = data.pricing.price1 || 4500;
+          document.getElementById('cfg-price-2').value = data.pricing.price2 || 8000;
+          document.getElementById('cfg-price-3').value = data.pricing.price3 || 11000;
+          document.getElementById('cfg-price-4').value = data.pricing.price4 || 14000;
+        }
+        if (data.bankInfo) {
+          document.getElementById('cfg-bank-banco').value = data.bankInfo.banco || '';
+          document.getElementById('cfg-bank-titular').value = data.bankInfo.titular || '';
+          document.getElementById('cfg-bank-cuit').value = data.bankInfo.cuit || '';
+          document.getElementById('cfg-bank-cbu').value = data.bankInfo.cbu || '';
+          document.getElementById('cfg-bank-alias').value = data.bankInfo.alias || '';
+          document.getElementById('cfg-bank-nota').value = data.bankInfo.nota || '';
+        }
+
         // Load socios padrón count
         try {
           const sRes = await fetch('/api/socios');
@@ -474,6 +553,51 @@
         }
       };
       reader.readAsText(fileInput.files[0]);
+    });
+
+    // Guardar Aranceles y Datos Bancarios
+    document.getElementById('admin-settings-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const feedback = document.getElementById('cfg-save-feedback');
+      feedback.style.color = '#475569';
+      feedback.textContent = 'Guardando configuración...';
+
+      const payload = {
+        pricing: {
+          price1: document.getElementById('cfg-price-1').value,
+          price2: document.getElementById('cfg-price-2').value,
+          price3: document.getElementById('cfg-price-3').value,
+          price4: document.getElementById('cfg-price-4').value
+        },
+        bankInfo: {
+          banco: document.getElementById('cfg-bank-banco').value,
+          titular: document.getElementById('cfg-bank-titular').value,
+          cuit: document.getElementById('cfg-bank-cuit').value,
+          cbu: document.getElementById('cfg-bank-cbu').value,
+          alias: document.getElementById('cfg-bank-alias').value,
+          nota: document.getElementById('cfg-bank-nota').value
+        }
+      };
+
+      try {
+        const res = await fetch('/api/admin/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          feedback.style.color = '#15803d';
+          feedback.textContent = '✅ ¡Precios y datos bancarios actualizados correctamente!';
+          setTimeout(() => { feedback.textContent = ''; }, 5000);
+        } else {
+          feedback.style.color = '#dc2626';
+          feedback.textContent = data.error || 'Error al guardar.';
+        }
+      } catch (err) {
+        feedback.style.color = '#dc2626';
+        feedback.textContent = 'Error de conexión con el servidor.';
+      }
     });
 
     document.getElementById('btn-refresh-stats').addEventListener('click', loadStats);

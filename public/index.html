@@ -270,7 +270,7 @@
     </div>
   </div>
 
-  <!-- Payment Modal for Non-Members (5-minute countdown & transfer upload) -->
+  <!-- Payment Modal for Non-Members (10-minute countdown & transfer upload) -->
   <div id="payment-modal" class="payment-modal hidden">
     <div class="payment-modal-content">
       <div class="payment-header">
@@ -278,19 +278,24 @@
         <span class="badge-nosocio">Transferencia Bancaria</span>
       </div>
       <p style="font-size: 0.9rem; margin-bottom: 0.75rem;">
-        Se ha tomado tu reserva de forma provisional. Tenés <strong>5 minutos</strong> para transferir y adjuntar el comprobante:
+        Se ha tomado tu reserva de forma provisional. Tenés <strong>10 minutos</strong> para transferir y adjuntar el comprobante:
       </p>
 
       <div class="countdown-box">
         <span>Tiempo restante para subir comprobante:</span>
-        <strong id="payment-timer" class="payment-timer">05:00</strong>
+        <strong id="payment-timer" class="payment-timer">10:00</strong>
       </div>
 
       <div class="cbu-box">
-        <div><strong>Club:</strong> Sportivo Fútbol Club de Álvarez</div>
-        <div><strong>CBU:</strong> 2850381140094123456789</div>
-        <div><strong>Alias:</strong> SPORTIVO.ALVAREZ.TENIS</div>
-        <div><strong>Monto Turno (90 min):</strong> $4.500</div>
+        <div><strong>Club:</strong> <span id="pay-bank-titular">Sportivo Fútbol Club de Álvarez</span></div>
+        <div><strong>Banco:</strong> <span id="pay-bank-nombre">Banco Macro</span></div>
+        <div><strong>CUIT:</strong> <span id="pay-bank-cuit">30-68123456-9</span></div>
+        <div><strong>CBU:</strong> <span id="pay-bank-cbu">2850381140094123456789</span></div>
+        <div><strong>Alias:</strong> <span id="pay-bank-alias" style="color:#1d4ed8; font-weight:700;">SPORTIVO.ALVAREZ.TENIS</span></div>
+        <div style="margin-top:0.35rem; padding-top:0.35rem; border-top:1px dashed #cbd5e1; font-size:1.05rem; color:#b45309;">
+          <strong>Total a Transferir:</strong> <span id="pay-amount-display" style="font-weight:800; color:#15803d;">$4.500</span>
+          <div id="pay-nonmembers-detail" style="font-size:0.75rem; color:#64748b; font-weight:normal;"></div>
+        </div>
       </div>
 
       <form id="payment-form" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">

@@ -65,6 +65,22 @@ const DEFAULT_USERS = [
   }
 ];
 
+const DEFAULT_PRICES = {
+  price1: 4500, // 1 no socio
+  price2: 8000, // 2 no socios
+  price3: 11000, // 3 no socios
+  price4: 14000  // 4 no socios
+};
+
+const DEFAULT_BANK_INFO = {
+  banco: 'Banco Macro / Red Link',
+  titular: 'Sportivo Fútbol Club de Álvarez',
+  cuit: '30-68123456-9',
+  cbu: '2850381140094123456789',
+  alias: 'SPORTIVO.ALVAREZ.TENIS',
+  nota: 'Enviar comprobante con nombre del titular o subirlo en la web.'
+};
+
 function ensureDb() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -73,7 +89,9 @@ function ensureDb() {
     const initialData = {
       users: [...DEFAULT_USERS],
       bookings: [],
-      emails: []
+      emails: [],
+      pricing: { ...DEFAULT_PRICES },
+      bankInfo: { ...DEFAULT_BANK_INFO }
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), 'utf8');
   }
@@ -85,9 +103,17 @@ function readDb() {
     const raw = fs.readFileSync(DB_FILE, 'utf8');
     const data = JSON.parse(raw);
     if (!data.emails) data.emails = [];
+    if (!data.pricing) data.pricing = { ...DEFAULT_PRICES };
+    if (!data.bankInfo) data.bankInfo = { ...DEFAULT_BANK_INFO };
     return data;
   } catch (e) {
-    return { users: [...DEFAULT_USERS], bookings: [], emails: [] };
+    return {
+      users: [...DEFAULT_USERS],
+      bookings: [],
+      emails: [],
+      pricing: { ...DEFAULT_PRICES },
+      bankInfo: { ...DEFAULT_BANK_INFO }
+    };
   }
 }
 
@@ -198,14 +224,14 @@ function checkBookingWindow(targetDateStr, role, nowInput) {
   return { allowed: true };
 }
 
-// Cleanup pending unconfirmed non-member bookings older than 5 minutes
+// Cleanup pending unconfirmed non-member bookings older than 10 minutes
 function purgeExpiredBookings(db, now) {
-  const fiveMinMs = 5 * 60 * 1000;
+  const tenMinMs = 10 * 60 * 1000;
   const initialLen = db.bookings.length;
   db.bookings = db.bookings.filter(b => {
     if (b.status === 'pendiente_pago') {
       const created = new Date(b.createdAt).getTime();
-      if (now.getTime() - created > fiveMinMs) {
+      if (now.getTime() - created > tenMinMs) {
         return false; // Expire and free up slot!
       }
     }
@@ -331,8 +357,53 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, {
       slots: SLOTS,
       courts: COURTS,
-      professors: db.users.filter(u => u.role === 'profesor')
+      professors: db.users.filter(u => u.role === 'profesor'),
+      pricing: db.pricing || DEFAULT_PRICES,
+      bankInfo: db.bankInfo || DEFAULT_BANK_INFO
     });
+  }
+
+  // GET & POST /api/admin/settings (Precios por no socios y datos bancarios)
+  if (pathname === '/api/admin/settings' && req.method === 'GET') {
+    const db = readDb();
+    return sendJson(res, 200, {
+      pricing: db.pricing || DEFAULT_PRICES,
+      bankInfo: db.bankInfo || DEFAULT_BANK_INFO
+    });
+  }
+
+  if (pathname === '/api/admin/settings' && req.method === 'POST') {
+    try {
+      const body = await parseBody(req);
+      const db = readDb();
+      if (body.pricing) {
+        db.pricing = {
+          price1: Number(body.pricing.price1) || DEFAULT_PRICES.price1,
+          price2: Number(body.pricing.price2) || DEFAULT_PRICES.price2,
+          price3: Number(body.pricing.price3) || DEFAULT_PRICES.price3,
+          price4: Number(body.pricing.price4) || DEFAULT_PRICES.price4
+        };
+      }
+      if (body.bankInfo) {
+        db.bankInfo = {
+          banco: (body.bankInfo.banco || '').trim(),
+          titular: (body.bankInfo.titular || '').trim(),
+          cuit: (body.bankInfo.cuit || '').trim(),
+          cbu: (body.bankInfo.cbu || '').trim(),
+          alias: (body.bankInfo.alias || '').trim(),
+          nota: (body.bankInfo.nota || '').trim()
+        };
+      }
+      writeDb(db);
+      return sendJson(res, 200, {
+        ok: true,
+        message: 'Precios y datos bancarios actualizados con éxito.',
+        pricing: db.pricing,
+        bankInfo: db.bankInfo
+      });
+    } catch (e) {
+      return sendJson(res, 400, { error: 'Error guardando configuración.' });
+    }
   }
 
   // POST /api/users/register
@@ -527,6 +598,9 @@ const server = http.createServer(async (req, res) => {
       });
 
       const requiresPayment = nonMembersInGroup.length > 0;
+      const countNonMembers = Math.min(Math.max(nonMembersInGroup.length, 1), 4);
+      const pricingKey = `price${countNonMembers}`;
+      const amountToPay = requiresPayment ? (db.pricing[pricingKey] || DEFAULT_PRICES[pricingKey]) : 0;
 
       const newBooking = {
         id: 'bk-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
@@ -543,10 +617,11 @@ const server = http.createServer(async (req, res) => {
         modalidad,
         players,
         nonMembersInGroup,
+        amountToPay,
         status: requiresPayment ? 'pendiente_pago' : 'confirmada',
         paymentProof: null,
         createdAt: now.toISOString(),
-        expiresAt: requiresPayment ? new Date(now.getTime() + 5 * 60 * 1000).toISOString() : null
+        expiresAt: requiresPayment ? new Date(now.getTime() + 10 * 60 * 1000).toISOString() : null
       };
 
       db.bookings.push(newBooking);
@@ -556,13 +631,19 @@ const server = http.createServer(async (req, res) => {
       }
 
       writeDb(db);
-      return sendJson(res, 201, { booking: newBooking, requiresPayment, nonMembersInGroup });
+      return sendJson(res, 201, {
+        booking: newBooking,
+        requiresPayment,
+        nonMembersInGroup,
+        amountToPay,
+        bankInfo: db.bankInfo
+      });
     } catch (e) {
       return sendJson(res, 400, { error: 'No se pudo procesar la reserva.' });
     }
   }
 
-  // POST /api/bookings/:id/payment (No-socio upload receipt within 5 min)
+  // POST /api/bookings/:id/payment (No-socio upload receipt within 10 min)
   if (pathname.includes('/payment') && req.method === 'POST') {
     try {
       const bookingId = pathname.split('/')[3];
@@ -572,15 +653,15 @@ const server = http.createServer(async (req, res) => {
       const db = readDb();
       const booking = db.bookings.find(b => b.id === bookingId);
       if (!booking) {
-        return sendJson(res, 404, { error: 'La reserva no existe o ya expiró por superar los 5 minutos.' });
+        return sendJson(res, 404, { error: 'La reserva no existe o ya expiró por superar los 10 minutos.' });
       }
 
       const now = simulatedNow ? new Date(simulatedNow) : new Date();
       const created = new Date(booking.createdAt).getTime();
-      if (now.getTime() - created > 5 * 60 * 1000) {
+      if (now.getTime() - created > 10 * 60 * 1000) {
         db.bookings = db.bookings.filter(b => b.id !== bookingId);
         writeDb(db);
-        return sendJson(res, 400, { error: 'Se cumplieron los 5 minutos límites para adjuntar el comprobante. El turno se ha liberado.' });
+        return sendJson(res, 400, { error: 'Se cumplieron los 10 minutos límites para adjuntar el comprobante. El turno se ha liberado.' });
       }
 
       booking.status = 'confirmada';
@@ -729,6 +810,8 @@ const server = http.createServer(async (req, res) => {
       })),
       userRanking,
       slotStats,
+      pricing: db.pricing || DEFAULT_PRICES,
+      bankInfo: db.bankInfo || DEFAULT_BANK_INFO,
       recentEmails: db.emails.slice(-10).reverse()
     });
   }

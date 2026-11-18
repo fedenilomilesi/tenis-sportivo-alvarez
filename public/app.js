@@ -715,12 +715,30 @@ function renderMyBookings() {
   });
 }
 
-// --- Non-member payment timer logic ---
-function openPaymentModal(booking) {
+// --- Non-member payment timer logic (10 minutos) ---
+function openPaymentModal(booking, extraInfo = {}) {
   pendingNonMemberBooking = booking;
   paymentModal.classList.remove('hidden');
 
-  let timeLeftSeconds = 5 * 60;
+  // Actualizar datos bancarios y monto
+  const bank = extraInfo.bankInfo || (config && config.bankInfo) || {};
+  if (document.getElementById('pay-bank-titular') && bank.titular) document.getElementById('pay-bank-titular').textContent = bank.titular;
+  if (document.getElementById('pay-bank-nombre') && bank.banco) document.getElementById('pay-bank-nombre').textContent = bank.banco;
+  if (document.getElementById('pay-bank-cuit') && bank.cuit) document.getElementById('pay-bank-cuit').textContent = bank.cuit;
+  if (document.getElementById('pay-bank-cbu') && bank.cbu) document.getElementById('pay-bank-cbu').textContent = bank.cbu;
+  if (document.getElementById('pay-bank-alias') && bank.alias) document.getElementById('pay-bank-alias').textContent = bank.alias;
+
+  const amount = booking.amountToPay || extraInfo.amountToPay || 4500;
+  if (document.getElementById('pay-amount-display')) {
+    document.getElementById('pay-amount-display').textContent = `$${Number(amount).toLocaleString('es-AR')}`;
+  }
+
+  const nonMembersCount = (booking.nonMembersInGroup || []).length || 1;
+  if (document.getElementById('pay-nonmembers-detail')) {
+    document.getElementById('pay-nonmembers-detail').textContent = `Arancel correspondiente a ${nonMembersCount} jugador/es no socio/s.`;
+  }
+
+  let timeLeftSeconds = 10 * 60; // 10 minutos
   function updateTimerText() {
     const mins = Math.floor(timeLeftSeconds / 60);
     const secs = timeLeftSeconds % 60;
@@ -728,7 +746,7 @@ function openPaymentModal(booking) {
     if (timeLeftSeconds <= 0) {
       clearInterval(paymentTimerInterval);
       paymentModal.classList.add('hidden');
-      showFeedback('Se cumplieron los 5 minutos límites para adjuntar el comprobante. El turno se ha liberado.', 'error');
+      showFeedback('Se cumplieron los 10 minutos límites para adjuntar el comprobante. El turno se ha liberado.', 'error');
       loadBookingsForSelectedDate();
     }
     timeLeftSeconds--;
@@ -934,8 +952,8 @@ async function executeBooking(date, court, slot, modalidad, players) {
 
       const booking = data.booking;
       if (booking.status === 'pendiente_pago') {
-        openPaymentModal(booking);
-        showFeedback('Turno pre-reservado. Se detectó jugador no socio: disponés de 5 minutos para adjuntar el comprobante.', 'success');
+        openPaymentModal(booking, data);
+        showFeedback('Turno pre-reservado. Se detectó jugador no socio: disponés de 10 minutos para adjuntar el comprobante.', 'success');
       } else {
         showFeedback(
           `¡Turno reservado con éxito! Se envió la confirmación con los jugadores a ${currentUser.mail}.`,
