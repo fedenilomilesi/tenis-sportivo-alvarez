@@ -16,6 +16,15 @@ const DEFAULT_PRICES = {
   price4: 14000
 };
 
+const DEFAULT_SLOTS = [
+  '14:00 a 15:30 hs',
+  '15:30 a 17:00 hs',
+  '17:00 a 18:30 hs',
+  '18:30 a 20:00 hs',
+  '20:00 a 21:30 hs',
+  '21:30 a 23:00 hs'
+];
+
 const DEFAULT_BANK_INFO = {
   banco: 'Banco Macro / Red Link',
   titular: 'Sportivo Fútbol Club de Álvarez',
@@ -166,14 +175,15 @@ async function getUsers() {
           celular: u.celular,
           mail: u.mail,
           role: u.role,
-          memberType: u.member_type || 'socio'
+          memberType: u.member_type || 'socio',
+          activo: u.activo !== false
         }));
       }
     } catch (e) {
       console.warn('Error leyendo usuarios de Supabase:', e.message);
     }
   }
-  return readLocalDb().users;
+  return readLocalDb().users.map(u => ({ ...u, activo: u.activo !== false }));
 }
 
 async function findUserByDni(dni) {
@@ -192,13 +202,15 @@ async function findUserByDni(dni) {
           celular: data.celular,
           mail: data.mail,
           role: data.role,
-          memberType: data.member_type || 'socio'
+          memberType: data.member_type || 'socio',
+          activo: data.activo !== false
         };
       }
     } catch (e) {}
   }
   const db = readLocalDb();
-  return db.users.find(u => u.dni === clean) || null;
+  const u = db.users.find(u => u.dni === clean);
+  return u ? { ...u, activo: u.activo !== false } : null;
 }
 
 async function findUserByMail(mail) {
@@ -217,13 +229,15 @@ async function findUserByMail(mail) {
           celular: data.celular,
           mail: data.mail,
           role: data.role,
-          memberType: data.member_type || 'socio'
+          memberType: data.member_type || 'socio',
+          activo: data.activo !== false
         };
       }
     } catch (e) {}
   }
   const db = readLocalDb();
-  return db.users.find(u => (u.mail || '').toLowerCase() === clean) || null;
+  const u = db.users.find(u => (u.mail || '').toLowerCase() === clean);
+  return u ? { ...u, activo: u.activo !== false } : null;
 }
 
 async function findUserById(id) {
@@ -241,16 +255,22 @@ async function findUserById(id) {
           celular: data.celular,
           mail: data.mail,
           role: data.role,
-          memberType: data.member_type || 'socio'
+          memberType: data.member_type || 'socio',
+          activo: data.activo !== false
         };
       }
     } catch (e) {}
   }
   const db = readLocalDb();
-  return db.users.find(u => u.id === id) || null;
+  const u = db.users.find(u => u.id === id);
+  return u ? { ...u, activo: u.activo !== false } : null;
 }
 
 async function saveOrUpdateUser(userObj) {
+  // Normalize activo flag
+  if (userObj.activo === undefined) {
+    userObj.activo = true;
+  }
   // Always update local DB for instant fallback
   const localDb = readLocalDb();
   const idx = localDb.users.findIndex(u => u.id === userObj.id || u.dni === userObj.dni || u.mail === userObj.mail);
@@ -271,7 +291,8 @@ async function saveOrUpdateUser(userObj) {
         celular: userObj.celular,
         mail: userObj.mail,
         role: userObj.role || 'socio',
-        member_type: userObj.memberType || 'socio'
+        member_type: userObj.memberType || 'socio',
+        activo: userObj.activo !== false
       };
       await supabase.from('users').upsert(payload, { onConflict: 'id' });
       supabaseConnected = true;
@@ -287,6 +308,24 @@ async function updateUser(userId, updates) {
   if (!existing) return null;
   const merged = { ...existing, ...updates };
   return await saveOrUpdateUser(merged);
+}
+
+async function deleteUserById(userId) {
+  if (!userId) return;
+  // Local
+  const localDb = readLocalDb();
+  localDb.users = (localDb.users || []).filter(u => u.id !== userId);
+  writeLocalDb(localDb);
+
+  // Supabase
+  if (supabase) {
+    try {
+      await supabase.from('users').delete().eq('id', userId);
+      supabaseConnected = true;
+    } catch (e) {
+      console.warn('Error borrando usuario de Supabase:', e.message);
+    }
+  }
 }
 
 // --- Bookings operations ---
@@ -472,20 +511,36 @@ async function getSociosPadron() {
       const { data, error } = await supabase.from('socios_padron').select('*');
       if (!error && data && data.length > 0) {
         supabaseConnected = true;
-        return data;
+        return data.map(s => ({
+          dni: s.dni,
+          nombre: s.nombre,
+          categoria: s.categoria || 'socio',
+          estado: s.estado || 'activo'
+        }));
       }
     } catch (e) {}
   }
-  return readLocalSocios();
+  return readLocalSocios().map(s => ({
+    dni: s.dni,
+    nombre: s.nombre,
+    categoria: s.categoria || 'socio',
+    estado: s.estado || 'activo'
+  }));
 }
 
 async function saveSociosPadron(list) {
-  writeLocalSocios(list);
+  const normalized = list.map(s => ({
+    dni: cleanDni(s.dni),
+    nombre: (s.nombre || '').trim(),
+    categoria: s.categoria || 'socio',
+    estado: s.estado || 'activo'
+  }));
+  writeLocalSocios(normalized);
   if (supabase) {
     try {
       const batches = [];
-      for (let i = 0; i < list.length; i += 100) {
-        batches.push(list.slice(i, i + 100));
+      for (let i = 0; i < normalized.length; i += 100) {
+        batches.push(normalized.slice(i, i + 100));
       }
       for (const batch of batches) {
         await supabase.from('socios_padron').upsert(batch, { onConflict: 'dni' });
@@ -503,7 +558,8 @@ async function addOrUpdateSocio(socio) {
   const item = {
     dni: clean,
     nombre: (socio.nombre || '').trim(),
-    categoria: socio.categoria || 'socio'
+    categoria: socio.categoria || 'socio',
+    estado: socio.estado || 'activo'
   };
 
   // Local
@@ -561,6 +617,7 @@ async function getSettings() {
   let pricing = { ...DEFAULT_PRICES };
   let bankInfo = { ...DEFAULT_BANK_INFO };
   let emailConfig = { ...DEFAULT_EMAIL_CONFIG };
+  let slots = [...DEFAULT_SLOTS];
 
   if (supabase) {
     try {
@@ -571,8 +628,9 @@ async function getSettings() {
           if (item.key === 'pricing' && item.data) pricing = item.data;
           if (item.key === 'bank_info' && item.data) bankInfo = item.data;
           if (item.key === 'email_config' && item.data) emailConfig = { ...DEFAULT_EMAIL_CONFIG, ...item.data };
+          if (item.key === 'slots' && Array.isArray(item.data) && item.data.length > 0) slots = item.data;
         });
-        return { pricing, bankInfo, emailConfig };
+        return { pricing, bankInfo, emailConfig, slots };
       }
     } catch (e) {}
   }
@@ -581,15 +639,17 @@ async function getSettings() {
   return {
     pricing: localDb.pricing || pricing,
     bankInfo: localDb.bankInfo || bankInfo,
-    emailConfig: localDb.emailConfig || emailConfig
+    emailConfig: localDb.emailConfig || emailConfig,
+    slots: (Array.isArray(localDb.slots) && localDb.slots.length > 0) ? localDb.slots : slots
   };
 }
 
-async function saveSettings(pricing, bankInfo, emailConfig) {
+async function saveSettings(pricing, bankInfo, emailConfig, slots) {
   const localDb = readLocalDb();
   if (pricing) localDb.pricing = pricing;
   if (bankInfo) localDb.bankInfo = bankInfo;
   if (emailConfig) localDb.emailConfig = emailConfig;
+  if (slots && Array.isArray(slots)) localDb.slots = slots;
   writeLocalDb(localDb);
 
   if (supabase) {
@@ -602,6 +662,9 @@ async function saveSettings(pricing, bankInfo, emailConfig) {
       }
       if (emailConfig) {
         await supabase.from('club_settings').upsert({ key: 'email_config', data: emailConfig }, { onConflict: 'key' });
+      }
+      if (slots && Array.isArray(slots)) {
+        await supabase.from('club_settings').upsert({ key: 'slots', data: slots }, { onConflict: 'key' });
       }
       supabaseConnected = true;
     } catch (e) {
@@ -654,6 +717,7 @@ module.exports = {
   findUserById,
   saveOrUpdateUser,
   updateUser,
+  deleteUserById,
   getBookings,
   getBookingById,
   saveBooking,
@@ -668,6 +732,7 @@ module.exports = {
   getRecentEmails,
   logSentEmail,
   DEFAULT_PRICES,
+  DEFAULT_SLOTS,
   DEFAULT_BANK_INFO,
   DEFAULT_EMAIL_CONFIG
 };

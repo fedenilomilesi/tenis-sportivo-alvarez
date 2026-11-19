@@ -38,7 +38,9 @@ function checkIsSocio(dni) {
   const cleaned = cleanDni(dni);
   if (!cleaned) return false;
   const list = getSociosList();
-  return list.some(s => cleanDni(s.dni) === cleaned);
+  const socio = list.find(s => cleanDni(s.dni) === cleaned);
+  if (!socio) return false;
+  return socio.estado !== 'inactivo';
 }
 
 function saveSociosList(list) {

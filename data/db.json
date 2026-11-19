@@ -39,10 +39,36 @@
       "mail": "admin@sportivoalvarez.com",
       "role": "admin",
       "memberType": "socio"
+    },
+    {
+      "id": "test-user-persist",
+      "nombre": "Juan",
+      "apellido": "Prueba",
+      "dni": "99887766",
+      "celular": "3411234567",
+      "mail": "juanprueba@sportivo.com",
+      "role": "socio",
+      "memberType": "socio"
+    },
+    {
+      "id": "test-edit-user-123",
+      "nombre": "Gonzalo",
+      "apellido": "Higuain Editado",
+      "dni": "88776655",
+      "celular": "3415554433",
+      "mail": "gonzalo@test.com",
+      "role": "profesor",
+      "memberType": "socio"
     }
   ],
   "bookings": [],
-  "emails": [],
+  "emails": [
+    {
+      "to": "fedenilomilesi@gmail.com",
+      "content": "Para: fedenilomilesi@gmail.com | CC: jarnocefarelli@gmail.com, leonardoalbertoli@gmail.com\n\nEstimado/a Federico Milesi,\n\n¡Tu turno de tenis en Sportivo Fútbol Club de Álvarez ha sido confirmado!\n\nDetalles de la Reserva:\n- Cancha: Cancha 1 (Polvo de Ladrillo)\n- Fecha: 2026-11-20\n- Turno: 18:30 a 20:00 hs\n- Modalidad: Dobles (4 jugadores)\n- Jugadores:\n  1. Federico Milesi (Titular)\n  2. Martín Palermo (Socio SFC)\n  3. Guillermo Barros Schelotto (No Socio)\n\nAVISO MUY IMPORTANTE:\n\"Si por alguna razón no vas a poder usar el turno, por favor cancelalo a tiempo desde la web para que otro socio pueda aprovecharlo y disfrutar de la cancha.\"\n\nCopia enviada a los profesores Jarno Cefarelli y Leonardo Albertoli para la coordinación de canchas.\n\nConsultas o administración: 3402 521352\nSportivo Fútbol Club de Álvarez",
+      "date": "2026-11-19T14:27:30.719Z"
+    }
+  ],
   "pricing": {
     "price1": 4500,
     "price2": 8000,
@@ -55,6 +81,6 @@
     "cuit": "30-68123456-9",
     "cbu": "2850381140094123456789",
     "alias": "SPORTIVO.ALVAREZ.TENIS",
-    "nota": "Enviar comprobante con nombre del titular o subirlo en la web."
+    "nota": "Subir comprobante en la web o transferir antes de los 10 minutos."
   }
 }

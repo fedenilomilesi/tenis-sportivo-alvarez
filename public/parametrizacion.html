@@ -113,6 +113,36 @@
       font-size: 0.75rem;
       font-weight: 700;
     }
+    .badge-inactivo {
+      background: #f1f5f9;
+      color: #64748b;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .badge-activo {
+      background: #dcfce7;
+      color: #15803d;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .btn-action-toggle {
+      background: #fefce8;
+      color: #854d0e;
+      border: 1px solid #fef08a;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-left: 0.35rem;
+    }
+    .btn-action-toggle:hover {
+      background: #fef9c3;
+    }
     .btn-action-edit {
       background: #eff6ff;
       color: #2563eb;
@@ -252,6 +282,13 @@
                 <option value="profesor">Profesor Oficial</option>
               </select>
             </div>
+            <div>
+              <label style="font-size: 0.85rem; font-weight: 600;">Estado:</label>
+              <select id="socio-estado" class="input-box">
+                <option value="activo">Activo (Habilitado)</option>
+                <option value="inactivo">Inactivo (Suspendido)</option>
+              </select>
+            </div>
           </div>
 
           <div style="margin-top: 1rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
@@ -283,11 +320,12 @@
               <th>DNI</th>
               <th>Nombre y Apellido</th>
               <th>Categoría</th>
+              <th>Estado</th>
               <th style="text-align: right;">Acciones ABM</th>
             </tr>
           </thead>
           <tbody id="socios-table-body">
-            <tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 1.5rem;">Cargando padrón oficial...</td></tr>
+            <tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 1.5rem;">Cargando padrón oficial...</td></tr>
           </tbody>
         </table>
       </div>
@@ -325,6 +363,56 @@
           <span id="pricing-feedback" style="font-size: 0.88rem; font-weight: 600;"></span>
         </div>
       </form>
+    </div>
+
+    <!-- SECCIÓN 2.1: CONFIGURACIÓN DE HORARIOS Y TURNOS (SLOTS) -->
+    <div class="card" style="margin-bottom: 2rem; border-left: 4px solid #0ea5e9;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem;">
+        <div>
+          <h2>⏰ Configuración de Horarios y Turnos (Slots)</h2>
+          <p class="section-desc">
+            Podés personalizar los horarios de alquiler de las canchas: agregar turnos a la mañana o más tarde a la noche, cambiar turnos a 1 hora o 1 hora y media, o eliminar franjas.
+          </p>
+        </div>
+        <button type="button" id="btn-reset-slots-default" class="btn-outline-sm" style="color: #0369a1; border-color: #7dd3fc;">
+          🔄 Restaurar Horarios Predeterminados
+        </button>
+      </div>
+
+      <!-- Turnos actuales -->
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin-bottom: 1.25rem;">
+        <label style="font-size: 0.85rem; font-weight: 700; color: #1e293b; display: block; margin-bottom: 0.5rem;">
+          Turnos configurados actualmente en la web:
+        </label>
+        <div id="slots-chips-container" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+          <!-- Chips renderizados dinámicamente -->
+        </div>
+        <small style="color: #64748b; font-size: 0.78rem;">
+          Podés quitar un turno haciendo clic en la ✕ de cada franja, o agregar nuevos abajo.
+        </small>
+      </div>
+
+      <!-- Agregar nuevo turno -->
+      <form id="form-add-slot" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem; margin-bottom: 1.25rem;">
+        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #166534;">➕ Agregar Nuevo Turno / Horario</h4>
+        <div style="display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 220px;">
+            <label style="font-size: 0.82rem; font-weight: 600; color: #14532d;">Descripción / Rango del Turno:</label>
+            <input type="text" id="new-slot-input" placeholder="Ej: 09:00 a 10:00 hs  ó  08:00 a 09:30 hs" class="input-box" style="margin-top: 0.2rem;" />
+          </div>
+          <button type="submit" class="btn-primary" style="background: #16a34a; white-space: nowrap;">
+            ➕ Agregar a la Lista
+          </button>
+        </div>
+      </form>
+
+      <!-- Botón para guardar configuración definitiva de slots -->
+      <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+        <button type="button" id="btn-save-slots" class="btn-primary" style="background: #0284c7;">
+          💾 Guardar Horarios en el Sistema
+        </button>
+        <span id="slots-feedback" style="font-size: 0.88rem; font-weight: 600;"></span>
+      </div>
     </div>
 
     <!-- SECCIÓN 3: CUENTAS BANCARIAS -->
@@ -470,11 +558,12 @@
               <th>Correo Electrónico</th>
               <th>Condición</th>
               <th>Rol en Sistema</th>
+              <th>Estado</th>
               <th style="text-align: right;">Acciones</th>
             </tr>
           </thead>
           <tbody id="registered-users-body">
-            <tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 1.5rem;">Cargando usuarios registrados...</td></tr>
+            <tr><td colspan="8" style="text-align: center; color: #94a3b8; padding: 1.5rem;">Cargando usuarios registrados...</td></tr>
           </tbody>
         </table>
       </div>
@@ -539,6 +628,14 @@
           </div>
         </div>
 
+        <div style="margin-bottom: 1.25rem;">
+          <label style="font-size: 0.85rem; font-weight: 600;">Estado de la Cuenta:</label>
+          <select id="edit-user-activo" class="input-box">
+            <option value="true">Activo (Puede ingresar y reservar)</option>
+            <option value="false">Inactivo (Acceso bloqueado)</option>
+          </select>
+        </div>
+
         <div id="edit-user-feedback" style="font-size: 0.88rem; font-weight: 600; margin-bottom: 0.75rem;"></div>
 
         <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
@@ -554,13 +651,22 @@
     let currentPricing = null;
     let currentBankInfo = null;
     let currentEmailConfig = null;
+    let currentSlots = [];
+    const DEFAULT_SLOTS_REF = [
+      '14:00 a 15:30 hs',
+      '15:30 a 17:00 hs',
+      '17:00 a 18:30 hs',
+      '18:30 a 20:00 hs',
+      '20:00 a 21:30 hs',
+      '21:30 a 23:00 hs'
+    ];
 
     // Cargar todo al inicio
     async function initParametrizacion() {
       await Promise.all([loadSettings(), loadSocios(), loadRegisteredUsers()]);
     }
 
-    // 1. Cargar Configuración (Precios, Banco y Correo)
+    // 1. Cargar Configuración (Precios, Horarios, Banco y Correo)
     async function loadSettings() {
       try {
         const res = await fetch('/api/admin/settings');
@@ -569,6 +675,9 @@
         currentPricing = data.pricing || {};
         currentBankInfo = data.bankInfo || {};
         currentEmailConfig = data.emailConfig || {};
+        currentSlots = Array.isArray(data.slots) && data.slots.length > 0 ? [...data.slots] : [...DEFAULT_SLOTS_REF];
+
+        renderSlotsChips();
 
         // Actualizar formulario de precios
         document.getElementById('cfg-price-1').value = currentPricing.price1 || 4500;
@@ -604,6 +713,84 @@
       }
     }
 
+    // Renderizar chips de horarios / slots
+    function renderSlotsChips() {
+      const container = document.getElementById('slots-chips-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (!currentSlots || currentSlots.length === 0) {
+        container.innerHTML = '<span style="color: #ef4444; font-size: 0.85rem;">No hay horarios cargados. Agregá al menos un turno abajo.</span>';
+        return;
+      }
+
+      currentSlots.forEach((slot, idx) => {
+        const chip = document.createElement('span');
+        chip.style.cssText = 'display: inline-flex; align-items: center; gap: 0.4rem; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 0.35rem 0.75rem; border-radius: 999px; font-size: 0.82rem; font-weight: 700;';
+        chip.innerHTML = `
+          <span>⏰ ${slot}</span>
+          <button type="button" title="Eliminar este horario" onclick="removeSlot(${idx})" style="background: none; border: none; color: #0284c7; cursor: pointer; font-size: 0.95rem; font-weight: bold; line-height: 1; padding: 0 0.15rem;">✕</button>
+        `;
+        container.appendChild(chip);
+      });
+    }
+
+    window.removeSlot = function(index) {
+      if (currentSlots.length <= 1) {
+        alert('Debe haber al menos 1 turno configurado.');
+        return;
+      }
+      currentSlots.splice(index, 1);
+      renderSlotsChips();
+    };
+
+    document.getElementById('form-add-slot').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('new-slot-input');
+      const val = input.value.trim();
+      if (!val) return;
+      if (currentSlots.includes(val)) {
+        alert('Ese turno ya existe en la lista.');
+        return;
+      }
+      currentSlots.push(val);
+      renderSlotsChips();
+      input.value = '';
+    });
+
+    document.getElementById('btn-reset-slots-default').addEventListener('click', () => {
+      if (confirm('¿Deseás restaurar los 6 turnos predeterminados de 1 hora y media (14:00 a 23:00 hs)?')) {
+        currentSlots = [...DEFAULT_SLOTS_REF];
+        renderSlotsChips();
+      }
+    });
+
+    document.getElementById('btn-save-slots').addEventListener('click', async () => {
+      const feedback = document.getElementById('slots-feedback');
+      feedback.style.color = '#475569';
+      feedback.textContent = 'Guardando turnos en el sistema...';
+
+      try {
+        const res = await fetch('/api/admin/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slots: currentSlots })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          feedback.style.color = '#15803d';
+          feedback.textContent = '✅ ¡Horarios y turnos guardados exitosamente en Supabase!';
+          setTimeout(() => { feedback.textContent = ''; }, 4500);
+        } else {
+          feedback.style.color = '#dc2626';
+          feedback.textContent = data.error || 'Error al guardar turnos.';
+        }
+      } catch (err) {
+        feedback.style.color = '#dc2626';
+        feedback.textContent = 'Error de conexión con el servidor.';
+      }
+    });
+
     // 2. Cargar Padrón de Socios
     async function loadSocios() {
       try {
@@ -614,7 +801,7 @@
         renderSociosTable(currentSocios);
 
         const kpiPadron = document.getElementById('kpi-total-padron');
-        if (kpiPadron) kpiPadron.textContent = currentSocios.length;
+        if (kpiPadron) kpiPadron.textContent = currentSocios.filter(s => s.estado !== 'inactivo').length;
 
         const countBadge = document.getElementById('socios-count-badge');
         if (countBadge) countBadge.textContent = `${currentSocios.length} Socios en el Padrón`;
@@ -623,13 +810,13 @@
       }
     }
 
-    // Renderizar tabla de socios
+    // Renderizar tabla de socios con estado Activo/Inactivo
     function renderSociosTable(list) {
       const tbody = document.getElementById('socios-table-body');
       if (!tbody) return;
 
       if (!list || list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 1.5rem;">No se encontraron socios en el padrón.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 1.5rem;">No se encontraron socios en el padrón.</td></tr>';
         return;
       }
 
@@ -638,6 +825,7 @@
         const tr = document.createElement('tr');
         const isProf = s.categoria === 'profesor';
         const isProtected = ['31610066', '47039935', '25410483'].includes(s.dni);
+        const isActivo = s.estado !== 'inactivo';
 
         tr.innerHTML = `
           <td><strong>${s.dni}</strong></td>
@@ -647,13 +835,21 @@
               ${isProf ? '🎾 Profesor Oficial' : 'Socio SFC'}
             </span>
           </td>
-          <td style="text-align: right;">
-            <button type="button" class="btn-action-edit" onclick="editSocio('${s.dni}', '${escapeQuotes(s.nombre)}', '${s.categoria}')">
+          <td>
+            <span class="${isActivo ? 'badge-activo' : 'badge-inactivo'}">
+              ${isActivo ? '✅ Activo' : '⏸️ Inactivo'}
+            </span>
+          </td>
+          <td style="text-align: right; white-space: nowrap;">
+            <button type="button" class="btn-action-edit" onclick="editSocio('${s.dni}', '${escapeQuotes(s.nombre)}', '${s.categoria}', '${s.estado || 'activo'}')">
               ✏️ Editar
             </button>
             ${!isProtected ? `
+              <button type="button" class="btn-action-toggle" onclick="toggleSocioStatus('${s.dni}', '${escapeQuotes(s.nombre)}')">
+                ${isActivo ? '⏸️ Inactivar' : '▶️ Activar'}
+              </button>
               <button type="button" class="btn-action-del" onclick="deleteSocio('${s.dni}', '${escapeQuotes(s.nombre)}')">
-                🗑️ Baja
+                🗑️ Eliminar
               </button>
             ` : '<span style="font-size:0.75rem; color:#94a3b8; margin-left:0.5rem;">(Oficial)</span>'}
           </td>
@@ -683,11 +879,12 @@
     });
 
     // 4. Cargar datos en el formulario para editar
-    window.editSocio = function(dni, nombre, categoria) {
+    window.editSocio = function(dni, nombre, categoria, estado) {
       document.getElementById('socio-dni').value = dni;
       document.getElementById('socio-dni').readOnly = true;
       document.getElementById('socio-nombre').value = nombre;
       document.getElementById('socio-categoria').value = categoria || 'socio';
+      document.getElementById('socio-estado').value = estado || 'activo';
       document.getElementById('socio-edit-mode').value = 'true';
       document.getElementById('form-socio-title').textContent = `✏️ Modificar Socio: ${nombre} (DNI ${dni})`;
       document.getElementById('btn-submit-socio').textContent = 'Actualizar Datos del Socio';
@@ -703,6 +900,7 @@
       document.getElementById('socio-dni').readOnly = false;
       document.getElementById('socio-nombre').value = '';
       document.getElementById('socio-categoria').value = 'socio';
+      document.getElementById('socio-estado').value = 'activo';
       document.getElementById('socio-edit-mode').value = 'false';
       document.getElementById('form-socio-title').textContent = '➕ Cargar o Modificar Socio a Mano';
       document.getElementById('btn-submit-socio').textContent = 'Guardar Socio en el Padrón';
@@ -720,12 +918,13 @@
       const dni = document.getElementById('socio-dni').value.trim();
       const nombre = document.getElementById('socio-nombre').value.trim();
       const categoria = document.getElementById('socio-categoria').value;
+      const estado = document.getElementById('socio-estado').value;
 
       try {
         const res = await fetch('/api/socios', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dni, nombre, categoria })
+          body: JSON.stringify({ dni, nombre, categoria, estado })
         });
         const data = await res.json();
         if (res.ok) {
@@ -745,9 +944,44 @@
       }
     });
 
-    // 6. Dar de baja individual a un socio
+    // Activar / Inactivar socio
+    window.toggleSocioStatus = async function(dni, nombre) {
+      try {
+        const res = await fetch(`/api/socios/${encodeURIComponent(dni)}/toggle-status`, {
+          method: 'POST'
+        });
+        const data = await res.json();
+        if (res.ok) {
+          await loadSocios();
+          await loadRegisteredUsers();
+        } else {
+          alert(`❌ ${data.error || 'Error al cambiar estado del socio.'}`);
+        }
+      } catch (err) {
+        alert('Error de conexión al cambiar estado del socio.');
+      }
+    };
+
+    // 6. Eliminar socio del padrón
     window.deleteSocio = async function(dni, nombre) {
-      if (!confirm(`¿Estás seguro de que deseás dar de baja del padrón al socio ${nombre} (DNI ${dni})?`)) return;
+      if (!confirm(`¿Estás seguro de que deseás eliminar permanentemente del padrón al socio ${nombre} (DNI ${dni})?`)) return;
+
+      try {
+        const res = await fetch(`/api/socios/${encodeURIComponent(dni)}`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`✅ ${data.message}`);
+          await loadSocios();
+          await loadRegisteredUsers();
+        } else {
+          alert(`❌ ${data.error || 'No se pudo eliminar al socio.'}`);
+        }
+      } catch (err) {
+        alert('Error de conexión al eliminar socio.');
+      }
+    };
 
       try {
         const res = await fetch(`/api/socios/${encodeURIComponent(dni)}`, {
@@ -1024,7 +1258,7 @@
         const users = data.registeredUsers || [];
 
         const kpiUsers = document.getElementById('kpi-total-users');
-        if (kpiUsers) kpiUsers.textContent = users.length;
+        if (kpiUsers) kpiUsers.textContent = users.filter(u => u.activo !== false).length;
 
         const countBadge = document.getElementById('registered-users-count');
         if (countBadge) countBadge.textContent = `${users.length} Usuarios Registrados`;
@@ -1033,7 +1267,7 @@
         if (!regBody) return;
 
         if (users.length === 0) {
-          regBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 1.5rem;">No hay usuarios registrados aún.</td></tr>';
+          regBody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #94a3b8; padding: 1.5rem;">No hay usuarios registrados aún.</td></tr>';
           return;
         }
 
@@ -1043,6 +1277,9 @@
           const isNoSocio = u.memberType === 'no_socio';
           const isProf = u.role === 'profesor';
           const isAdmin = u.role === 'admin';
+          const isActivo = u.activo !== false;
+          const isProtected = ['31610066', '47039935', '25410483', '00000000'].includes(u.dni);
+
           tr.innerHTML = `
             <td><strong>${u.nombre} ${u.apellido}</strong></td>
             <td>${u.dni}</td>
@@ -1056,10 +1293,23 @@
                 ${isAdmin ? '🛡️ Administrador' : isProf ? '🎾 Profesor Oficial' : 'Jugador / Socio'}
               </span>
             </td>
-            <td style="text-align: right;">
-              <button type="button" class="btn-action-edit" onclick="openEditUserModal('${u.id}', '${escapeQuotes(u.nombre)}', '${escapeQuotes(u.apellido)}', '${u.dni}', '${escapeQuotes(u.celular || '')}', '${escapeQuotes(u.mail)}', '${u.memberType || 'socio'}', '${u.role || 'socio'}')">
+            <td>
+              <span class="${isActivo ? 'badge-activo' : 'badge-inactivo'}">
+                ${isActivo ? '✅ Activo' : '⏸️ Inactivo'}
+              </span>
+            </td>
+            <td style="text-align: right; white-space: nowrap;">
+              <button type="button" class="btn-action-edit" onclick="openEditUserModal('${u.id}', '${escapeQuotes(u.nombre)}', '${escapeQuotes(u.apellido)}', '${u.dni}', '${escapeQuotes(u.celular || '')}', '${escapeQuotes(u.mail)}', '${u.memberType || 'socio'}', '${u.role || 'socio'}', ${isActivo})">
                 ✏️ Editar
               </button>
+              ${!isProtected ? `
+                <button type="button" class="btn-action-toggle" onclick="toggleUserStatus('${u.id}', '${escapeQuotes(u.nombre)} ${escapeQuotes(u.apellido)}')">
+                  ${isActivo ? '⏸️ Inactivar' : '▶️ Activar'}
+                </button>
+                <button type="button" class="btn-action-del" onclick="deleteUser('${u.id}', '${escapeQuotes(u.nombre)} ${escapeQuotes(u.apellido)}')">
+                  🗑️ Eliminar
+                </button>
+              ` : '<span style="font-size:0.75rem; color:#94a3b8; margin-left:0.5rem;">(Oficial)</span>'}
             </td>
           `;
           regBody.appendChild(tr);
@@ -1070,7 +1320,7 @@
     }
 
     // Modal de Edición de Usuario Registrado
-    window.openEditUserModal = function(id, nombre, apellido, dni, celular, mail, memberType, role) {
+    window.openEditUserModal = function(id, nombre, apellido, dni, celular, mail, memberType, role, activo) {
       document.getElementById('edit-user-id').value = id;
       document.getElementById('edit-user-nombre').value = nombre;
       document.getElementById('edit-user-apellido').value = apellido;
@@ -1079,6 +1329,7 @@
       document.getElementById('edit-user-mail').value = mail;
       document.getElementById('edit-user-membertype').value = memberType || 'socio';
       document.getElementById('edit-user-role').value = role || 'socio';
+      document.getElementById('edit-user-activo').value = (activo !== false) ? 'true' : 'false';
       document.getElementById('edit-user-modal-title').textContent = `✏️ Editar Usuario: ${nombre} ${apellido}`;
       document.getElementById('edit-user-feedback').textContent = '';
       document.getElementById('modal-edit-user').classList.remove('hidden');
@@ -1102,7 +1353,8 @@
         celular: document.getElementById('edit-user-celular').value.trim(),
         mail: document.getElementById('edit-user-mail').value.trim().toLowerCase(),
         memberType: document.getElementById('edit-user-membertype').value,
-        role: document.getElementById('edit-user-role').value
+        role: document.getElementById('edit-user-role').value,
+        activo: document.getElementById('edit-user-activo').value === 'true'
       };
 
       try {
@@ -1128,6 +1380,43 @@
         feedback.textContent = 'Error de conexión con el servidor.';
       }
     });
+
+    // Activar / Inactivar usuario
+    window.toggleUserStatus = async function(userId, userName) {
+      try {
+        const res = await fetch(`/api/users/${encodeURIComponent(userId)}/toggle-status`, {
+          method: 'POST'
+        });
+        const data = await res.json();
+        if (res.ok) {
+          await Promise.all([loadRegisteredUsers(), loadSocios()]);
+        } else {
+          alert(`❌ ${data.error || 'Error al cambiar estado del usuario.'}`);
+        }
+      } catch (err) {
+        alert('Error de conexión al cambiar estado del usuario.');
+      }
+    };
+
+    // Eliminar usuario
+    window.deleteUser = async function(userId, userName) {
+      if (!confirm(`¿Estás seguro de que deseás eliminar permanentemente la cuenta de ${userName}?`)) return;
+
+      try {
+        const res = await fetch(`/api/users/${encodeURIComponent(userId)}`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`✅ ${data.message}`);
+          await Promise.all([loadRegisteredUsers(), loadSocios()]);
+        } else {
+          alert(`❌ ${data.error || 'Error al eliminar usuario.'}`);
+        }
+      } catch (err) {
+        alert('Error de conexión al eliminar usuario.');
+      }
+    };
 
     initParametrizacion();
   </script>

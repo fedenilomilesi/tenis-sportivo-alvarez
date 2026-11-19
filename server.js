@@ -179,19 +179,22 @@ const server = http.createServer(async (req, res) => {
       ]);
       const map = new Map();
 
-      // 1. Del padrón oficial
+      // 1. Del padrón oficial (solo activos)
       padron.forEach(s => {
         const clean = cleanDni(s.dni);
-        map.set(clean, {
-          dni: clean,
-          nombre: s.nombre,
-          isSocio: true,
-          source: 'padron'
-        });
+        if (s.estado !== 'inactivo') {
+          map.set(clean, {
+            dni: clean,
+            nombre: s.nombre,
+            isSocio: true,
+            source: 'padron'
+          });
+        }
       });
 
-      // 2. De los usuarios registrados en el sistema
+      // 2. De los usuarios registrados en el sistema (solo activos)
       users.forEach(u => {
+        if (u.activo === false) return; // Omitir usuarios dados de baja o inactivos de la lista de selección
         const clean = cleanDni(u.dni);
         const isSocio = u.role === 'profesor' || u.role === 'admin' || u.memberType === 'socio' || map.has(clean);
         map.set(clean, {
@@ -216,10 +219,11 @@ const server = http.createServer(async (req, res) => {
         dbAdapter.getSettings(),
         dbAdapter.getUsers()
       ]);
+      const activeSlots = (Array.isArray(settings.slots) && settings.slots.length > 0) ? settings.slots : SLOTS;
       return sendJson(res, 200, {
-        slots: SLOTS,
+        slots: activeSlots,
         courts: COURTS,
-        professors: users.filter(u => u.role === 'profesor'),
+        professors: users.filter(u => u.role === 'profesor' && u.activo !== false),
         pricing: settings.pricing || DEFAULT_PRICES,
         bankInfo: settings.bankInfo || DEFAULT_BANK_INFO
       });
@@ -228,14 +232,15 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // GET & POST /api/admin/settings (Precios por no socios y datos bancarios)
+  // GET & POST /api/admin/settings (Precios por no socios, turnos y datos bancarios)
   if (pathname === '/api/admin/settings' && req.method === 'GET') {
     try {
       const settings = await dbAdapter.getSettings();
       return sendJson(res, 200, {
         pricing: settings.pricing || DEFAULT_PRICES,
         bankInfo: settings.bankInfo || DEFAULT_BANK_INFO,
-        emailConfig: settings.emailConfig || dbAdapter.DEFAULT_EMAIL_CONFIG
+        emailConfig: settings.emailConfig || dbAdapter.DEFAULT_EMAIL_CONFIG,
+        slots: (Array.isArray(settings.slots) && settings.slots.length > 0) ? settings.slots : SLOTS
       });
     } catch (e) {
       return sendJson(res, 500, { error: 'Error obteniendo configuración admin.' });
@@ -249,6 +254,7 @@ const server = http.createServer(async (req, res) => {
       let newPricing = current.pricing || { ...DEFAULT_PRICES };
       let newBankInfo = current.bankInfo || { ...DEFAULT_BANK_INFO };
       let newEmailConfig = current.emailConfig || { ...dbAdapter.DEFAULT_EMAIL_CONFIG };
+      let newSlots = current.slots || [...SLOTS];
 
       if (body.pricing) {
         newPricing = {
@@ -278,13 +284,17 @@ const server = http.createServer(async (req, res) => {
           enabled: body.emailConfig.enabled !== false
         };
       }
-      await dbAdapter.saveSettings(newPricing, newBankInfo, newEmailConfig);
+      if (Array.isArray(body.slots) && body.slots.length > 0) {
+        newSlots = body.slots.map(s => String(s).trim()).filter(Boolean);
+      }
+      await dbAdapter.saveSettings(newPricing, newBankInfo, newEmailConfig, newSlots);
       return sendJson(res, 200, {
         ok: true,
-        message: 'Configuración de precios, banco y correos actualizada con éxito.',
+        message: 'Configuración de precios, horarios, banco y correos actualizada con éxito.',
         pricing: newPricing,
         bankInfo: newBankInfo,
-        emailConfig: newEmailConfig
+        emailConfig: newEmailConfig,
+        slots: newSlots
       });
     } catch (e) {
       return sendJson(res, 400, { error: 'Error guardando configuración.' });
@@ -398,6 +408,10 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 404, { error: 'No se encontró una cuenta con ese correo electrónico o DNI. Por favor completá el registro inicial una sola vez.' });
       }
 
+      if (user.activo === false) {
+        return sendJson(res, 403, { error: 'Tu cuenta ha sido inactivada por la administración del club. Por favor comunicate con el club para más información.' });
+      }
+
       // Re-verificar si es admin o profe por DNI al loguearse
       const userCleanDni = cleanDni(user.dni);
       let roleUpdated = false;
@@ -448,6 +462,7 @@ const server = http.createServer(async (req, res) => {
       const mail = (body.mail !== undefined ? body.mail : existingUser.mail).trim().toLowerCase();
       const memberType = body.memberType || existingUser.memberType || 'socio';
       const role = body.role || existingUser.role || 'socio';
+      const activo = body.activo !== undefined ? (body.activo === true || body.activo === 'true' || body.activo === 1) : (existingUser.activo !== false);
 
       if (!nombre || !apellido || !dni || !mail) {
         return sendJson(res, 400, { error: 'Nombre, Apellido, DNI y Correo Electrónico son obligatorios.' });
@@ -473,17 +488,19 @@ const server = http.createServer(async (req, res) => {
         celular,
         mail,
         memberType,
-        role
+        role,
+        activo
       };
 
       await dbAdapter.saveOrUpdateUser(updatedUser);
 
-      // Si se definió como socio, sincronizar con el padrón oficial
+      // Si se definió como socio y está activo, sincronizar con el padrón oficial
       if (memberType === 'socio') {
         await dbAdapter.addOrUpdateSocio({
           dni,
           nombre: `${nombre} ${apellido}`,
-          categoria: role === 'profesor' ? 'profesor' : 'socio'
+          categoria: role === 'profesor' ? 'profesor' : 'socio',
+          estado: activo ? 'activo' : 'inactivo'
         });
       }
 
@@ -494,6 +511,60 @@ const server = http.createServer(async (req, res) => {
       });
     } catch (e) {
       return sendJson(res, 500, { error: 'Error al actualizar usuario.' });
+    }
+  }
+
+  // PATCH /api/users/:id/toggle-status (Activar / Inactivar usuario)
+  if (pathname.startsWith('/api/users/') && pathname.endsWith('/toggle-status') && (req.method === 'PATCH' || req.method === 'POST')) {
+    try {
+      const parts = pathname.replace('/toggle-status', '').split('/');
+      const userId = parts[3];
+      const user = await dbAdapter.findUserById(userId);
+      if (!user) {
+        return sendJson(res, 404, { error: 'Usuario no encontrado.' });
+      }
+
+      // Proteger a los administradores principales
+      if (['31610066', '47039935', '25410483', '00000000'].includes(user.dni)) {
+        return sendJson(res, 403, { error: 'No se puede inactivar la cuenta de administradores o profesores oficiales.' });
+      }
+
+      const newStatus = !(user.activo !== false);
+      user.activo = newStatus;
+      await dbAdapter.saveOrUpdateUser(user);
+
+      return sendJson(res, 200, {
+        ok: true,
+        activo: newStatus,
+        message: `El usuario ${user.nombre} ${user.apellido} ha sido ${newStatus ? 'activado' : 'inactivado'} correctamente.`
+      });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'Error al cambiar estado del usuario.' });
+    }
+  }
+
+  // DELETE /api/users/:id (Eliminar usuario registrado)
+  if (pathname.startsWith('/api/users/') && req.method === 'DELETE') {
+    try {
+      const parts = pathname.split('/');
+      const userId = parts[3];
+      const user = await dbAdapter.findUserById(userId);
+      if (!user) {
+        return sendJson(res, 404, { error: 'Usuario no encontrado.' });
+      }
+
+      // Proteger cuentas principales
+      if (['31610066', '47039935', '25410483', '00000000'].includes(user.dni)) {
+        return sendJson(res, 403, { error: 'No se puede eliminar la cuenta de administradores o profesores oficiales.' });
+      }
+
+      await dbAdapter.deleteUserById(userId);
+      return sendJson(res, 200, {
+        ok: true,
+        message: `Usuario ${user.nombre} ${user.apellido} (DNI ${user.dni}) eliminado correctamente.`
+      });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'Error al eliminar usuario.' });
     }
   }
 
@@ -523,17 +594,22 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 400, { error: 'Cancha inválida.' });
       }
 
-      if (!SLOTS.includes(slot)) {
-        return sendJson(res, 400, { error: 'Horario de turno inválido.' });
-      }
-
       const [user, settings] = await Promise.all([
         dbAdapter.findUserById(userId),
         dbAdapter.getSettings()
       ]);
 
+      const activeSlots = (Array.isArray(settings.slots) && settings.slots.length > 0) ? settings.slots : SLOTS;
+      if (!activeSlots.includes(slot)) {
+        return sendJson(res, 400, { error: 'Horario de turno inválido o no configurado.' });
+      }
+
       if (!user) {
         return sendJson(res, 404, { error: 'Usuario no encontrado. Por favor registrate con tu mail.' });
+      }
+
+      if (user.activo === false) {
+        return sendJson(res, 403, { error: 'Tu cuenta ha sido inactivada. No podés realizar reservas.' });
       }
 
       const now = simulatedNow ? new Date(simulatedNow) : new Date();
@@ -741,6 +817,7 @@ const server = http.createServer(async (req, res) => {
       const dni = cleanDni(body.dni);
       const nombre = (body.nombre || '').trim();
       const categoria = body.categoria || 'socio';
+      const estado = body.estado || 'activo';
 
       if (!dni || dni.length < 6) {
         return sendJson(res, 400, { error: 'El DNI debe tener al menos 6 dígitos numéricos.' });
@@ -749,12 +826,12 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 400, { error: 'El Nombre y Apellido es obligatorio.' });
       }
 
-      const item = await dbAdapter.addOrUpdateSocio({ dni, nombre, categoria });
+      const item = await dbAdapter.addOrUpdateSocio({ dni, nombre, categoria, estado });
 
       // Si el usuario ya está registrado en users, actualizar condición de socio
       const user = await dbAdapter.findUserByDni(dni);
       if (user && user.role !== 'admin' && user.role !== 'profesor') {
-        user.memberType = 'socio';
+        user.memberType = estado === 'activo' ? 'socio' : 'no_socio';
         await dbAdapter.saveOrUpdateUser(user);
       }
 
@@ -765,6 +842,47 @@ const server = http.createServer(async (req, res) => {
       });
     } catch (e) {
       return sendJson(res, 400, { error: 'Error al agregar o modificar socio.' });
+    }
+  }
+
+  // Activar / Inactivar socio en el padrón
+  if (pathname.startsWith('/api/socios/') && pathname.endsWith('/toggle-status') && (req.method === 'PATCH' || req.method === 'POST')) {
+    try {
+      const rawDni = pathname.replace('/api/socios/', '').replace('/toggle-status', '');
+      const dni = cleanDni(rawDni);
+
+      if (!dni) {
+        return sendJson(res, 400, { error: 'DNI inválido.' });
+      }
+
+      if (['31610066', '47039935', '25410483'].includes(dni)) {
+        return sendJson(res, 403, { error: 'No se puede inactivar a administradores o profesores oficiales.' });
+      }
+
+      const padron = await dbAdapter.getSociosPadron();
+      const socio = padron.find(s => cleanDni(s.dni) === dni);
+      if (!socio) {
+        return sendJson(res, 404, { error: 'Socio no encontrado en el padrón.' });
+      }
+
+      const newEstado = socio.estado === 'inactivo' ? 'activo' : 'inactivo';
+      socio.estado = newEstado;
+      await dbAdapter.addOrUpdateSocio(socio);
+
+      // Si el usuario está registrado, sincronizar su condición
+      const user = await dbAdapter.findUserByDni(dni);
+      if (user && user.role !== 'admin' && user.role !== 'profesor') {
+        user.memberType = newEstado === 'activo' ? 'socio' : 'no_socio';
+        await dbAdapter.saveOrUpdateUser(user);
+      }
+
+      return sendJson(res, 200, {
+        ok: true,
+        estado: newEstado,
+        message: `El socio ${socio.nombre} (DNI ${dni}) ha sido ${newEstado === 'activo' ? 'activado' : 'inactivado'} en el padrón.`
+      });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'Error al cambiar estado del socio.' });
     }
   }
 
@@ -910,7 +1028,8 @@ const server = http.createServer(async (req, res) => {
           celular: u.celular,
           mail: u.mail,
           role: u.role,
-          memberType: u.memberType
+          memberType: u.memberType,
+          activo: u.activo !== false
         })),
         userRanking,
         slotStats,
