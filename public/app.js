@@ -1458,32 +1458,58 @@ function setupExitAppButton() {
   const btnCancelExit = document.getElementById('btn-cancel-exit');
   const btnConfirmExit = document.getElementById('btn-confirm-exit');
 
-  const openExitModal = () => {
+  const openExitModal = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (modalExit) modalExit.classList.remove('hidden');
   };
 
-  const closeExitModal = () => {
+  const closeExitModal = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (modalExit) modalExit.classList.add('hidden');
   };
 
-  if (btnExitHeader) btnExitHeader.addEventListener('click', openExitModal);
-  if (btnExitMobile) btnExitMobile.addEventListener('click', openExitModal);
-  if (btnCancelExit) btnCancelExit.addEventListener('click', closeExitModal);
+  if (btnExitHeader) {
+    btnExitHeader.addEventListener('click', openExitModal);
+  }
+  if (btnExitMobile) {
+    btnExitMobile.addEventListener('click', openExitModal);
+  }
+  if (btnCancelExit) {
+    btnCancelExit.addEventListener('click', closeExitModal);
+  }
 
   if (btnConfirmExit) {
-    btnConfirmExit.addEventListener('click', () => {
-      // 1. Intentar cerrar ventana nativamente
-      window.close();
+    btnConfirmExit.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-      // 2. Si el navegador no permite window.close() directo por permisos de seguridad:
-      setTimeout(() => {
-        // Redirigir a una página limpia o retroceder fuera del historial
-        if (window.history.length > 1) {
-          window.history.back();
-        } else {
-          window.location.href = 'about:blank';
+      // Cerrar modal
+      closeExitModal();
+
+      // Limpiar historial previo para evitar múltiples retrocesos
+      try {
+        if (window.history && window.history.length > 0) {
+          window.history.go(-(window.history.length));
         }
-      }, 150);
+      } catch (err) {}
+
+      // Intentar cerrar la pestaña / ventana
+      try {
+        window.close();
+      } catch (err) {}
+
+      // En Android / Chrome PWA: si window.close() es restringido por el motor,
+      // redirigir a salida inmediata
+      setTimeout(() => {
+        // Redirigir a blank o salir
+        window.location.replace('about:blank');
+      }, 50);
     });
   }
 }
