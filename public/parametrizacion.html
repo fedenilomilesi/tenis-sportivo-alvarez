@@ -383,33 +383,63 @@
         </span>
       </div>
 
+      <!-- Alerta Explicativa sobre Render Free y HTTPS -->
+      <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; font-size: 0.86rem; color: #1e40af; line-height: 1.6;">
+        <strong>🚀 ¿Por qué se utiliza el Webhook de Google Apps Script?</strong><br>
+        En el plan gratuito de Render, los puertos tradicionales SMTP (25, 465 y 587) están bloqueados por firewall para evitar spam, lo que produce <em>"Connection timeout"</em>.<br>
+        La solución oficial y definitiva es conectar tu cuenta <strong>tenissfc@gmail.com</strong> mediante una <strong>Aplicación Web de Google Script (HTTPS Puerto 443)</strong>: es 100% gratuita, nunca se bloquea y envía directamente desde tu Gmail.
+      </div>
+
+      <!-- Paso a Paso para Google Apps Script -->
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
+        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.95rem; color: #0f172a;">📋 Paso a paso para habilitar el envío en 2 minutos:</h4>
+        <ol style="margin: 0; padding-left: 1.25rem; font-size: 0.85rem; color: #334155; line-height: 1.7;">
+          <li>Abrí con tu cuenta <strong>tenissfc@gmail.com</strong>: <a href="https://script.google.com/" target="_blank" style="color: #2563eb; font-weight: bold;">script.google.com</a> y hacé clic en <strong>"Nuevo proyecto"</strong>.</li>
+          <li>Borrá lo que haya y pegá el siguiente código:
+            <div style="position: relative; margin: 0.5rem 0;">
+              <textarea id="google-script-code" readonly style="width: 100%; height: 120px; font-family: monospace; font-size: 0.76rem; background: #0f172a; color: #e2e8f0; border-radius: 6px; padding: 0.6rem; border: none; resize: none;">function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var options = { name: data.senderName || "Tenis Sportivo FC Álvarez" };
+    if (data.html) options.htmlBody = data.html;
+    if (data.cc) options.cc = data.cc;
+    GmailApp.sendEmail(data.to, data.subject, data.text || "", options);
+    return ContentService.createTextOutput(JSON.stringify({ status: "ok" })).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
+}</textarea>
+              <button type="button" id="btn-copy-script-code" class="btn-outline-sm" style="position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.25); color: #fff; border: 1px solid rgba(255,255,255,0.4); font-size: 0.72rem; cursor: pointer;">📋 Copiar Código</button>
+            </div>
+          </li>
+          <li>Hacé clic arriba a la derecha en <strong>Implementar &gt; Nueva implementación</strong>.</li>
+          <li>En la ruedita ⚙️ elegí <strong>Tipo: Aplicación web</strong>.</li>
+          <li>En <em>"Quién tiene acceso"</em> seleccioná <strong>"Cualquiera"</strong> y hacé clic en <strong>Implementar</strong> (aceptá los permisos de tu cuenta).</li>
+          <li>Copiá la <strong>URL de la aplicación web</strong> (termina en <code>/exec</code>), pegala abajo y hacé clic en <strong>Guardar y Probar</strong>.</li>
+        </ol>
+      </div>
+
       <form id="admin-email-form">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
-          <div>
-            <label style="font-size: 0.85rem; font-weight: 600;">Correo Remitente Oficial (Gmail):</label>
-            <input type="email" id="cfg-email-sender" value="tenissfc@gmail.com" required class="input-box" />
-          </div>
-          <div>
-            <label style="font-size: 0.85rem; font-weight: 600;">Contraseña de Aplicación de Google (16 caracteres) *:</label>
-            <input type="password" id="cfg-email-pass" placeholder="Ej: abcd efgh ijkl mnop" class="input-box" autocomplete="off" />
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+          <div style="grid-column: 1 / -1;">
+            <label style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">
+              🔗 URL de la Aplicación Web de Google Script (HTTPS) *:
+            </label>
+            <input type="url" id="cfg-email-script-url" placeholder="https://script.google.com/macros/s/.../exec" class="input-box" style="border: 2px solid #8b5cf6;" />
             <small style="color: #64748b; font-size: 0.76rem; display: block; margin-top: 0.25rem;">
-              🔑 Clave de 16 letras generada en Google Account (Seguridad &gt; Verificación en 2 pasos &gt; Contraseñas de aplicaciones).
+              Esta URL envía los correos directamente desde tenissfc@gmail.com a través de la nube de Google sin sufrir bloqueos de firewall.
             </small>
           </div>
+
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">Correo Remitente Oficial:</label>
+            <input type="email" id="cfg-email-sender" value="tenissfc@gmail.com" required class="input-box" />
+          </div>
+
           <div>
             <label style="font-size: 0.85rem; font-weight: 600;">Profesores Notificados en Copia (CC):</label>
             <input type="text" id="cfg-email-profs" value="jarnocefarelli@gmail.com, leonardoalbertoli@gmail.com" required class="input-box" />
-            <small style="color: #64748b; font-size: 0.76rem; display: block; margin-top: 0.25rem;">
-              Separar correos por coma. Recibirán cada reserva y cancelación para coordinar las canchas.
-            </small>
           </div>
-        </div>
-
-        <div style="background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; font-size: 0.84rem; color: #5b21b6; line-height: 1.5;">
-          <strong>ℹ️ ¿Cómo generar la clave de aplicación en tenissfc@gmail.com?</strong><br>
-          1. Ingresá a <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color: #7c3aed; font-weight: bold;">myaccount.google.com/apppasswords</a> con la cuenta <em>tenissfc@gmail.com</em>.<br>
-          2. Creá una contraseña para el nombre <strong>"Tenis SFC"</strong>.<br>
-          3. Copiá las 16 letras generadas, pegalas en el campo de arriba y hacé clic en "Guardar y Probar Conexión".
         </div>
 
         <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
@@ -564,10 +594,10 @@
 
         // Actualizar formulario de correos
         const cfgSender = document.getElementById('cfg-email-sender');
-        const cfgPass = document.getElementById('cfg-email-pass');
+        const cfgScriptUrl = document.getElementById('cfg-email-script-url');
         const cfgProfs = document.getElementById('cfg-email-profs');
         if (cfgSender) cfgSender.value = currentEmailConfig.senderEmail || 'tenissfc@gmail.com';
-        if (cfgPass && currentEmailConfig.appPassword) cfgPass.value = currentEmailConfig.appPassword;
+        if (cfgScriptUrl && currentEmailConfig.googleScriptUrl) cfgScriptUrl.value = currentEmailConfig.googleScriptUrl;
         if (cfgProfs) cfgProfs.value = (currentEmailConfig.profEmails || ['jarnocefarelli@gmail.com', 'leonardoalbertoli@gmail.com']).join(', ');
       } catch (err) {
         console.error('Error cargando configuración:', err);
@@ -885,6 +915,23 @@
       }
     });
 
+    // Copiar código de Google Script al portapapeles
+    const btnCopyCode = document.getElementById('btn-copy-script-code');
+    if (btnCopyCode) {
+      btnCopyCode.addEventListener('click', () => {
+        const code = document.getElementById('google-script-code').value;
+        navigator.clipboard.writeText(code).then(() => {
+          btnCopyCode.textContent = '✅ ¡Copiado!';
+          setTimeout(() => { btnCopyCode.textContent = '📋 Copiar Código'; }, 2500);
+        }).catch(() => {
+          document.getElementById('google-script-code').select();
+          document.execCommand('copy');
+          btnCopyCode.textContent = '✅ ¡Copiado!';
+          setTimeout(() => { btnCopyCode.textContent = '📋 Copiar Código'; }, 2500);
+        });
+      });
+    }
+
     // Guardar Configuración de Correo
     document.getElementById('admin-email-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -898,7 +945,7 @@
       const payload = {
         emailConfig: {
           senderEmail: document.getElementById('cfg-email-sender').value.trim(),
-          appPassword: document.getElementById('cfg-email-pass').value.trim(),
+          googleScriptUrl: document.getElementById('cfg-email-script-url').value.trim(),
           profEmails,
           enabled: true
         }
@@ -913,8 +960,8 @@
         const data = await res.json();
         if (res.ok) {
           feedback.style.color = '#15803d';
-          feedback.textContent = '✅ ¡Configuración de correo guardada con éxito!';
-          setTimeout(() => { feedback.textContent = ''; }, 4000);
+          feedback.textContent = '✅ ¡Configuración guardada! Ahora hacé clic en "Probar Envío de Test".';
+          setTimeout(() => { feedback.textContent = ''; }, 6000);
         } else {
           feedback.style.color = '#dc2626';
           feedback.textContent = data.error || 'Error al guardar configuración.';
@@ -929,14 +976,21 @@
     document.getElementById('btn-test-email').addEventListener('click', async () => {
       const feedback = document.getElementById('email-feedback');
       feedback.style.color = '#7c3aed';
-      feedback.textContent = 'Probando conexión con Gmail y enviando correo de prueba...';
+      feedback.textContent = 'Enviando correo de prueba a tenissfc@gmail.com por HTTPS (Puerto 443)...';
+
+      const scriptUrl = document.getElementById('cfg-email-script-url').value.trim();
+      if (!scriptUrl) {
+        feedback.style.color = '#dc2626';
+        feedback.textContent = '⚠️ Primero pegá la URL de la aplicación web de Google Apps Script arriba.';
+        return;
+      }
 
       const profsRaw = document.getElementById('cfg-email-profs').value;
       const profEmails = profsRaw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 
       const emailConfig = {
         senderEmail: document.getElementById('cfg-email-sender').value.trim(),
-        appPassword: document.getElementById('cfg-email-pass').value.trim(),
+        googleScriptUrl: scriptUrl,
         profEmails,
         enabled: true
       };
@@ -953,7 +1007,7 @@
           feedback.textContent = `✅ ${data.message || '¡Prueba exitosa! Correo enviado a tenissfc@gmail.com.'}`;
         } else {
           feedback.style.color = '#dc2626';
-          feedback.textContent = `❌ ${data.error || 'Error de conexión con Gmail. Verificá la contraseña de aplicación de 16 letras.'}`;
+          feedback.textContent = `❌ ${data.error || 'Error al enviar correo de prueba.'}`;
         }
       } catch (err) {
         feedback.style.color = '#dc2626';

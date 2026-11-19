@@ -549,6 +549,8 @@ async function deleteSocioByDni(dni) {
 
 const DEFAULT_EMAIL_CONFIG = {
   senderEmail: 'tenissfc@gmail.com',
+  googleScriptUrl: process.env.GOOGLE_SCRIPT_URL || '',
+  resendApiKey: process.env.RESEND_API_KEY || '',
   appPassword: process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD || '',
   profEmails: ['jarnocefarelli@gmail.com', 'leonardoalbertoli@gmail.com'],
   enabled: true

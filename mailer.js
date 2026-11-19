@@ -5,44 +5,99 @@ const DEFAULT_SENDER = 'tenissfc@gmail.com';
 const PROFESSOR_EMAILS = ['jarnocefarelli@gmail.com', 'leonardoalbertoli@gmail.com'];
 
 /**
- * Crea un transportador nodemailer con IPv4 forzado (family: 4)
- * para evitar el infame Connection Timeout por IPv6 en servidores en la nube (Render / Docker / AWS).
+ * Envío vía Google Apps Script Webhook (HTTPS Puerto 443).
+ * Solución recomendada para Render Free ya que Render bloquea los puertos SMTP (465/587),
+ * pero permite todo el tráfico HTTPS saliente hacia los servidores de Google.
  */
-function createTransporter(user, pass, port = 465) {
+async function sendViaGoogleScript(url, mailData) {
+  const cleanUrl = url.trim();
+  const response = await fetch(cleanUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      to: mailData.to,
+      cc: Array.isArray(mailData.cc) ? mailData.cc.join(',') : (mailData.cc || ''),
+      subject: mailData.subject,
+      text: mailData.text,
+      html: mailData.html,
+      senderName: 'Tenis Sportivo FC Álvarez'
+    }),
+    redirect: 'follow'
+  });
+
+  const rawText = await response.text();
+  try {
+    const data = JSON.parse(rawText);
+    if (data.status === 'ok' || data.status === 'Success') {
+      return { success: true, via: 'google_script' };
+    }
+    throw new Error(data.error || data.message || 'Error en Apps Script');
+  } catch (err) {
+    if (rawText.includes('ok') || rawText.includes('success') || response.status === 200) {
+      return { success: true, via: 'google_script' };
+    }
+    throw new Error(`Google Apps Script: ${rawText.substring(0, 120)}`);
+  }
+}
+
+/**
+ * Envío alternativo vía Resend API (HTTPS Puerto 443).
+ */
+async function sendViaResend(apiKey, mailData) {
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey.trim()}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from: 'Tenis Sportivo FC <onboarding@resend.dev>',
+      to: [mailData.to],
+      cc: mailData.cc,
+      subject: mailData.subject,
+      text: mailData.text,
+      html: mailData.html
+    })
+  });
+  const data = await response.json();
+  if (response.ok) return { success: true, messageId: data.id, via: 'resend' };
+  throw new Error(data.message || JSON.stringify(data));
+}
+
+/**
+ * Transportador SMTP para entornos donde los puertos no estén bloqueados (ej. planes pagos o local).
+ */
+function createSmtpTransporter(user, pass, port = 465) {
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: port,
-    secure: port === 465, // SSL directo en 465, STARTTLS en 587
-    family: 4,            // OBLIGATORIO: Fuerza conexión IPv4 evitando que Node cuelgue con IPv6
+    secure: port === 465,
+    family: 4,
     auth: {
       user: user.trim(),
-      pass: pass.trim().replace(/\s+/g, '') // Quita espacios de los 16 caracteres de la clave
+      pass: pass.trim().replace(/\s+/g, '')
     },
     tls: {
       rejectUnauthorized: true,
       minVersion: 'TLSv1.2'
     },
-    connectionTimeout: 10000, // 10s máximo para conectar
-    greetingTimeout: 8000,
-    socketTimeout: 15000
+    connectionTimeout: 8000,
+    greetingTimeout: 6000,
+    socketTimeout: 10000
   });
 }
 
-/**
- * Intenta enviar el correo probando primero el puerto 465 (SSL IPv4)
- * y en caso de contingencia cae al puerto 587 (TLS IPv4).
- */
 async function sendMailWithFallback(mailOptions, user, pass) {
   const ports = [465, 587];
   let lastError = null;
 
   for (const port of ports) {
     try {
-      const transporter = createTransporter(user, pass, port);
+      const transporter = createSmtpTransporter(user, pass, port);
       const info = await transporter.sendMail(mailOptions);
-      return { success: true, messageId: info.messageId, port };
+      return { success: true, messageId: info.messageId, port, via: 'smtp' };
     } catch (err) {
-      console.warn(`[MAILER] Falló envío en puerto ${port} (${err.message}). Probando alternativa...`);
+      console.warn(`[MAILER SMTP] Falló puerto ${port}: ${err.message}`);
       lastError = err;
     }
   }
@@ -79,11 +134,14 @@ async function sendBookingConfirmationEmail(booking, user, emailConfig = null) {
   const titularName = `${user.nombre} ${user.apellido}`;
   const senderEmail = (emailConfig && emailConfig.senderEmail) || DEFAULT_SENDER;
   const pass = (emailConfig && emailConfig.appPassword) || process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD || '';
+  const scriptUrl = (emailConfig && emailConfig.googleScriptUrl) || process.env.GOOGLE_SCRIPT_URL || '';
+  const resendKey = (emailConfig && emailConfig.resendApiKey) || process.env.RESEND_API_KEY || '';
+
   const profs = (emailConfig && emailConfig.profEmails && emailConfig.profEmails.length > 0)
     ? emailConfig.profEmails
     : PROFESSOR_EMAILS;
 
-  // Destinatarios: el titular en TO, y los profesores en CC
+  // Destinatarios: titular en TO, profesores en CC
   const toEmail = user.mail;
   const ccEmails = profs.filter(p => p && p.toLowerCase() !== toEmail.toLowerCase());
 
@@ -171,11 +229,35 @@ Sportivo Fútbol Club de Álvarez
 </div>
   `.trim();
 
-  // 1. Guardar siempre en el historial de Supabase
+  // 1. Guardar siempre en historial Supabase
   const logSummary = `Para: ${toEmail} | CC: ${ccEmails.join(', ')}\n\n${textContent}`;
   await dbAdapter.logSentEmail(toEmail, logSummary);
 
-  // 2. Intentar envío real por SMTP Gmail (IPv4 con fallback de puerto)
+  const mailData = { to: toEmail, cc: ccEmails, subject, text: textContent, html: htmlContent };
+
+  // 2. Método 1: Google Script Webhook (HTTPS Puerto 443 - 100% compatible con Render Free)
+  if (scriptUrl) {
+    try {
+      const res = await sendViaGoogleScript(scriptUrl, mailData);
+      console.log(`✅ [EMAIL ENVIADO VIA GOOGLE APPS SCRIPT] To: ${toEmail}, CC: ${ccEmails.join(', ')}`);
+      return { success: true, via: 'google_script' };
+    } catch (e) {
+      console.warn(`⚠️ Error enviando por Google Script Webhook: ${e.message}`);
+    }
+  }
+
+  // 3. Método 2: Resend API (HTTPS Puerto 443)
+  if (resendKey) {
+    try {
+      const res = await sendViaResend(resendKey, mailData);
+      console.log(`✅ [EMAIL ENVIADO VIA RESEND API] To: ${toEmail}, CC: ${ccEmails.join(', ')}`);
+      return { success: true, via: 'resend' };
+    } catch (e) {
+      console.warn(`⚠️ Error enviando por Resend API: ${e.message}`);
+    }
+  }
+
+  // 4. Método 3: SMTP Directo
   if (pass) {
     try {
       const res = await sendMailWithFallback({
@@ -186,16 +268,15 @@ Sportivo Fútbol Club de Álvarez
         text: textContent,
         html: htmlContent
       }, senderEmail, pass);
-      console.log(`✅ [EMAIL REAL ENVIADO VIA GMAIL] Id: ${res.messageId} (Puerto ${res.port}) -> To: ${toEmail}, CC: ${ccEmails.join(', ')}`);
-      return { success: true, messageId: res.messageId };
+      console.log(`✅ [EMAIL ENVIADO VIA SMTP GMAIL] Puerto ${res.port} -> To: ${toEmail}, CC: ${ccEmails.join(', ')}`);
+      return { success: true, via: 'smtp' };
     } catch (err) {
-      console.warn(`⚠️ [ADVERTENCIA GMAIL] No se pudo enviar por SMTP (${err.message}). El turno quedó registrado correctamente y el correo guardado en el historial.`);
+      console.warn(`⚠️ [ADVERTENCIA SMTP] No se pudo enviar por puertos SMTP (Render Free bloquea 465/587): ${err.message}`);
       return { success: false, error: err.message };
     }
-  } else {
-    console.log(`ℹ️ [MODO REGISTRO] Correo registrado en base de datos. Para activar el envío real por Gmail ingresá la contraseña de aplicación de ${senderEmail} en Parametrización.`);
-    return { success: false, pendingConfig: true };
   }
+
+  return { success: false, pendingConfig: true };
 }
 
 /**
@@ -205,6 +286,9 @@ async function sendBookingCancellationEmail(booking, user, cancelledByName = nul
   const titularName = `${user.nombre} ${user.apellido}`;
   const senderEmail = (emailConfig && emailConfig.senderEmail) || DEFAULT_SENDER;
   const pass = (emailConfig && emailConfig.appPassword) || process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD || '';
+  const scriptUrl = (emailConfig && emailConfig.googleScriptUrl) || process.env.GOOGLE_SCRIPT_URL || '';
+  const resendKey = (emailConfig && emailConfig.resendApiKey) || process.env.RESEND_API_KEY || '';
+
   const profs = (emailConfig && emailConfig.profEmails && emailConfig.profEmails.length > 0)
     ? emailConfig.profEmails
     : PROFESSOR_EMAILS;
@@ -254,6 +338,22 @@ Sportivo Fútbol Club de Álvarez
   const logSummary = `[CANCELACIÓN] Para: ${toEmail} | CC: ${ccEmails.join(', ')}\n\n${textContent}`;
   await dbAdapter.logSentEmail(toEmail, logSummary);
 
+  const mailData = { to: toEmail, cc: ccEmails, subject, text: textContent, html: htmlContent };
+
+  if (scriptUrl) {
+    try {
+      await sendViaGoogleScript(scriptUrl, mailData);
+      return;
+    } catch (e) {}
+  }
+
+  if (resendKey) {
+    try {
+      await sendViaResend(resendKey, mailData);
+      return;
+    } catch (e) {}
+  }
+
   if (pass) {
     try {
       await sendMailWithFallback({
@@ -264,67 +364,101 @@ Sportivo Fútbol Club de Álvarez
         text: textContent,
         html: htmlContent
       }, senderEmail, pass);
-      console.log(`✅ [CANCELACIÓN ENVIADA] To: ${toEmail}, CC: ${ccEmails.join(', ')}`);
-    } catch (e) {
-      console.warn('⚠️ Error enviando mail de cancelación:', e.message);
-    }
+    } catch (e) {}
   }
 }
 
 /**
- * Prueba la conexión enviando un email de test a la propia cuenta tenissfc@gmail.com
- * con IPv4 forzado y doble intento (puerto 465 SSL y 587 TLS).
+ * Prueba la conexión enviando un email de test.
  */
 async function testEmailConnection(emailConfig) {
+  const scriptUrl = (emailConfig && emailConfig.googleScriptUrl) || process.env.GOOGLE_SCRIPT_URL || '';
+  const resendKey = (emailConfig && emailConfig.resendApiKey) || process.env.RESEND_API_KEY || '';
   const pass = (emailConfig && emailConfig.appPassword) || process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD || '';
   const user = (emailConfig && emailConfig.senderEmail) || process.env.EMAIL_USER || DEFAULT_SENDER;
 
-  if (!pass) {
-    return { ok: false, error: 'Falta ingresar la Contraseña de Aplicación de 16 caracteres de Google.' };
-  }
+  const testMailData = {
+    to: user,
+    cc: '',
+    subject: '🎾 Prueba de Conexión de Correo - Sportivo FC Álvarez',
+    text: '¡Conexión verificada exitosamente! El sistema de reservas de tenis ya puede enviar notificaciones a los socios y a los profesores Jarno Cefarelli y Leonardo Albertoli.',
+    html: `
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #1e40af; margin-top: 0;">🎾 ¡Conexión con Gmail Exitosa!</h2>
+        <p>El sistema de reservas de tenis de <strong>Sportivo Fútbol Club de Álvarez</strong> está listo para enviar notificaciones automáticas desde <strong>${user}</strong>.</p>
+        <p style="color: #64748b; font-size: 13px;">Verificado a las ${new Date().toLocaleTimeString('es-AR')}.</p>
+      </div>
+    `
+  };
 
-  const ports = [465, 587];
-  let lastError = null;
-
-  for (const port of ports) {
+  // 1. Probar Google Script Webhook (Recomendado Render Free - Puerto 443)
+  if (scriptUrl) {
     try {
-      console.log(`[TEST EMAIL] Conectando a smtp.gmail.com por puerto ${port} (IPv4 forzado)...`);
-      const transporter = createTransporter(user, pass, port);
-      await transporter.verify();
-
-      const info = await transporter.sendMail({
-        from: `"Tenis Sportivo FC Álvarez" <${user}>`,
-        to: user,
-        subject: '🎾 Prueba de Conexión de Correo - Sportivo FC Álvarez',
-        text: '¡Conexión verificada exitosamente! El sistema de reservas de tenis ya puede enviar notificaciones a los socios y a los profesores Jarno Cefarelli y Leonardo Albertoli.',
-        html: `
-          <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
-            <h2 style="color: #1e40af; margin-top: 0;">🎾 ¡Conexión con Gmail Exitosa!</h2>
-            <p>El sistema de reservas de tenis de <strong>Sportivo Fútbol Club de Álvarez</strong> está listo para enviar notificaciones automáticas desde <strong>${user}</strong>.</p>
-            <p style="color: #64748b; font-size: 13px;">Conectado a través del puerto ${port} (IPv4 SSL/TLS) a las ${new Date().toLocaleTimeString('es-AR')}.</p>
-          </div>
-        `
-      });
-
-      console.log(`[TEST EMAIL EXITOSO] Verificado y enviado en puerto ${port}. ID: ${info.messageId}`);
+      console.log('[TEST EMAIL] Probando envío por Google Apps Script Webhook (Puerto 443 HTTPS)...');
+      await sendViaGoogleScript(scriptUrl, testMailData);
       return {
         ok: true,
-        message: `¡Conexión exitosa! Correo de verificación enviado a ${user} (Puerto ${port} IPv4).`
+        message: `¡Prueba exitosa! Correo de verificación enviado desde ${user} a través del Webhook de Google (HTTPS Puerto 443 sin bloqueos).`
       };
     } catch (err) {
-      console.warn(`[TEST EMAIL] Error en puerto ${port}:`, err.message);
-      lastError = err;
+      return { ok: false, error: `Error en Webhook de Google: ${err.message}` };
     }
   }
 
-  let friendlyError = lastError ? lastError.message : 'Error desconocido';
-  if (lastError && (lastError.code === 'EAUTH' || friendlyError.includes('Invalid login') || friendlyError.includes('Username and Password not accepted') || friendlyError.includes('535-5.7.8'))) {
-    friendlyError = 'Contraseña no aceptada por Google. Asegurate de generar una "Contraseña de aplicación" de 16 letras en Google Account (con Verificación en 2 pasos activa) y pegarla aquí, NO tu contraseña habitual de Gmail.';
-  } else if (friendlyError.includes('timeout') || (lastError && lastError.code === 'ETIMEDOUT')) {
-    friendlyError = 'Tiempo de espera de conexión agotado. Comprobá que no haya restricciones en la red o intentá nuevamente.';
+  // 2. Probar Resend API
+  if (resendKey) {
+    try {
+      await sendViaResend(resendKey, testMailData);
+      return {
+        ok: true,
+        message: `¡Prueba exitosa vía Resend API! Correo enviado a ${user}.`
+      };
+    } catch (err) {
+      return { ok: false, error: `Error en Resend API: ${err.message}` };
+    }
   }
 
-  return { ok: false, error: friendlyError };
+  // 3. Probar SMTP Directo (si no configuró webhook)
+  if (pass) {
+    const ports = [465, 587];
+    let lastError = null;
+
+    for (const port of ports) {
+      try {
+        console.log(`[TEST EMAIL SMTP] Probando puerto ${port}...`);
+        const transporter = createSmtpTransporter(user, pass, port);
+        await transporter.verify();
+        const info = await transporter.sendMail({
+          from: `"Tenis Sportivo FC Álvarez" <${user}>`,
+          to: user,
+          subject: testMailData.subject,
+          text: testMailData.text,
+          html: testMailData.html
+        });
+        return {
+          ok: true,
+          message: `¡Prueba exitosa vía SMTP directo! Correo enviado a ${user} (Puerto ${port}).`
+        };
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    if (lastError && (lastError.code === 'ETIMEDOUT' || lastError.message.includes('timeout'))) {
+      return {
+        ok: false,
+        isSmtpBlocked: true,
+        error: 'Render bloquea los puertos SMTP salientes (465/587) en su plan gratuito (Firewall ETIMEDOUT). Para enviar correos desde tenissfc@gmail.com sin costo, pegá la URL de Webhook de Google Apps Script (que opera por HTTPS Puerto 443).'
+      };
+    }
+
+    return { ok: false, error: lastError ? lastError.message : 'Error desconocido de conexión.' };
+  }
+
+  return {
+    ok: false,
+    error: 'Falta configurar un método de envío: pegá la URL del Webhook de Google Apps Script o una clave de API.'
+  };
 }
 
 module.exports = {

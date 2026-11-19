@@ -271,8 +271,10 @@ const server = http.createServer(async (req, res) => {
       if (body.emailConfig) {
         newEmailConfig = {
           senderEmail: (body.emailConfig.senderEmail || 'tenissfc@gmail.com').trim(),
-          appPassword: (body.emailConfig.appPassword !== undefined ? body.emailConfig.appPassword : newEmailConfig.appPassword).trim(),
-          profEmails: Array.isArray(body.emailConfig.profEmails) ? body.emailConfig.profEmails : newEmailConfig.profEmails,
+          googleScriptUrl: (body.emailConfig.googleScriptUrl !== undefined ? body.emailConfig.googleScriptUrl : (newEmailConfig.googleScriptUrl || '')).trim(),
+          resendApiKey: (body.emailConfig.resendApiKey !== undefined ? body.emailConfig.resendApiKey : (newEmailConfig.resendApiKey || '')).trim(),
+          appPassword: (body.emailConfig.appPassword !== undefined ? body.emailConfig.appPassword : (newEmailConfig.appPassword || '')).trim(),
+          profEmails: Array.isArray(body.emailConfig.profEmails) ? body.emailConfig.profEmails : (newEmailConfig.profEmails || ['jarnocefarelli@gmail.com', 'leonardoalbertoli@gmail.com']),
           enabled: body.emailConfig.enabled !== false
         };
       }
