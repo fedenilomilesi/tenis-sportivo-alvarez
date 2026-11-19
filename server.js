@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { cleanDni } = require('./sociosManager');
 const dbAdapter = require('./db');
+const mailer = require('./mailer');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -126,35 +127,10 @@ function checkBookingWindow(targetDateStr, role, nowInput) {
   return { allowed: true };
 }
 
-// Emulate Email Notification & Log to Supabase / Local
+// Email Notification to User & Professors (Jarno & Leonardo)
 async function sendConfirmationEmailAsync(booking, user) {
-  const playersListStr = Array.isArray(booking.players) && booking.players.length > 0
-    ? booking.players.map((p, idx) => `  ${idx + 2}. ${p.nombre} (${p.isSocio ? 'Socio' : 'No Socio'})`).join('\n')
-    : '  (No especificados)';
-
-  const content = `
-Estimado/a ${user.nombre} ${user.apellido},
-
-¡Tu turno ha sido confirmado con éxito!
-
-Detalles de la Reserva:
-- Cancha: ${booking.court} (Polvo de Ladrillo)
-- Fecha: ${booking.date}
-- Turno: ${booking.slot}
-- Modalidad: ${booking.modalidad === 'dobles' ? 'Dobles (4 jugadores)' : 'Singles (2 jugadores)'}
-- Jugadores:
-  1. ${user.nombre} ${user.apellido} (Titular)
-${playersListStr}
-
-AVISO MUY IMPORTANTE:
-"Si por alguna razón no vas a poder usar el turno, por favor cancelalo a tiempo desde la web para que otro socio pueda aprovecharlo y disfrutar de la cancha."
-
-Consultas o administración: 3402 521352
-Sportivo Fútbol Club de Álvarez
-  `.trim();
-
-  await dbAdapter.logSentEmail(user.mail, content);
-  console.log(`[EMAIL ENVIADO a ${user.mail}]: Confirmación de Reserva - ${booking.court} (${booking.slot}) - Sportivo FC Álvarez`);
+  const settings = await dbAdapter.getSettings();
+  return await mailer.sendBookingConfirmationEmail(booking, user, settings.emailConfig);
 }
 
 function sendJson(res, status, payload) {
@@ -258,7 +234,8 @@ const server = http.createServer(async (req, res) => {
       const settings = await dbAdapter.getSettings();
       return sendJson(res, 200, {
         pricing: settings.pricing || DEFAULT_PRICES,
-        bankInfo: settings.bankInfo || DEFAULT_BANK_INFO
+        bankInfo: settings.bankInfo || DEFAULT_BANK_INFO,
+        emailConfig: settings.emailConfig || dbAdapter.DEFAULT_EMAIL_CONFIG
       });
     } catch (e) {
       return sendJson(res, 500, { error: 'Error obteniendo configuración admin.' });
@@ -271,6 +248,7 @@ const server = http.createServer(async (req, res) => {
       const current = await dbAdapter.getSettings();
       let newPricing = current.pricing || { ...DEFAULT_PRICES };
       let newBankInfo = current.bankInfo || { ...DEFAULT_BANK_INFO };
+      let newEmailConfig = current.emailConfig || { ...dbAdapter.DEFAULT_EMAIL_CONFIG };
 
       if (body.pricing) {
         newPricing = {
@@ -290,15 +268,41 @@ const server = http.createServer(async (req, res) => {
           nota: (body.bankInfo.nota || '').trim()
         };
       }
-      await dbAdapter.saveSettings(newPricing, newBankInfo);
+      if (body.emailConfig) {
+        newEmailConfig = {
+          senderEmail: (body.emailConfig.senderEmail || 'tenissfc@gmail.com').trim(),
+          appPassword: (body.emailConfig.appPassword !== undefined ? body.emailConfig.appPassword : newEmailConfig.appPassword).trim(),
+          profEmails: Array.isArray(body.emailConfig.profEmails) ? body.emailConfig.profEmails : newEmailConfig.profEmails,
+          enabled: body.emailConfig.enabled !== false
+        };
+      }
+      await dbAdapter.saveSettings(newPricing, newBankInfo, newEmailConfig);
       return sendJson(res, 200, {
         ok: true,
-        message: 'Precios y datos bancarios actualizados con éxito en la base de datos.',
+        message: 'Configuración de precios, banco y correos actualizada con éxito.',
         pricing: newPricing,
-        bankInfo: newBankInfo
+        bankInfo: newBankInfo,
+        emailConfig: newEmailConfig
       });
     } catch (e) {
       return sendJson(res, 400, { error: 'Error guardando configuración.' });
+    }
+  }
+
+  // POST /api/admin/test-email (Prueba de envío real con tenissfc@gmail.com)
+  if (pathname === '/api/admin/test-email' && req.method === 'POST') {
+    try {
+      const body = await parseBody(req);
+      const settings = await dbAdapter.getSettings();
+      const cfg = body.emailConfig || settings.emailConfig;
+      const result = await mailer.testEmailConnection(cfg);
+      if (result.ok) {
+        return sendJson(res, 200, result);
+      } else {
+        return sendJson(res, 400, result);
+      }
+    } catch (e) {
+      return sendJson(res, 500, { ok: false, error: e.message });
     }
   }
 
@@ -697,6 +701,21 @@ const server = http.createServer(async (req, res) => {
       }
 
       await dbAdapter.deleteBookingById(bookingId);
+
+      // Notificar cancelación por email al titular y en copia a los profesores
+      try {
+        const bookingUser = await dbAdapter.findUserById(booking.userId) || {
+          nombre: (booking.userName || '').split(' ')[0] || '',
+          apellido: (booking.userName || '').split(' ').slice(1).join(' ') || '',
+          mail: booking.userMail
+        };
+        const cancelledByName = reqUser ? `${reqUser.nombre} ${reqUser.apellido}` : null;
+        const settings = await dbAdapter.getSettings();
+        await mailer.sendBookingCancellationEmail(booking, bookingUser, cancelledByName, settings.emailConfig);
+      } catch (err) {
+        console.warn('Aviso de cancelación por mail:', err.message);
+      }
+
       return sendJson(res, 200, { ok: true, message: 'Reserva cancelada correctamente.' });
     } catch (e) {
       return sendJson(res, 500, { error: 'Error cancelando reserva.' });

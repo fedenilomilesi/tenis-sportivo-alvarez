@@ -547,10 +547,18 @@ async function deleteSocioByDni(dni) {
   }
 }
 
+const DEFAULT_EMAIL_CONFIG = {
+  senderEmail: 'tenissfc@gmail.com',
+  appPassword: process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD || '',
+  profEmails: ['jarnocefarelli@gmail.com', 'leonardoalbertoli@gmail.com'],
+  enabled: true
+};
+
 // --- Settings operations ---
 async function getSettings() {
   let pricing = { ...DEFAULT_PRICES };
   let bankInfo = { ...DEFAULT_BANK_INFO };
+  let emailConfig = { ...DEFAULT_EMAIL_CONFIG };
 
   if (supabase) {
     try {
@@ -560,8 +568,9 @@ async function getSettings() {
         data.forEach(item => {
           if (item.key === 'pricing' && item.data) pricing = item.data;
           if (item.key === 'bank_info' && item.data) bankInfo = item.data;
+          if (item.key === 'email_config' && item.data) emailConfig = { ...DEFAULT_EMAIL_CONFIG, ...item.data };
         });
-        return { pricing, bankInfo };
+        return { pricing, bankInfo, emailConfig };
       }
     } catch (e) {}
   }
@@ -569,14 +578,16 @@ async function getSettings() {
   const localDb = readLocalDb();
   return {
     pricing: localDb.pricing || pricing,
-    bankInfo: localDb.bankInfo || bankInfo
+    bankInfo: localDb.bankInfo || bankInfo,
+    emailConfig: localDb.emailConfig || emailConfig
   };
 }
 
-async function saveSettings(pricing, bankInfo) {
+async function saveSettings(pricing, bankInfo, emailConfig) {
   const localDb = readLocalDb();
   if (pricing) localDb.pricing = pricing;
   if (bankInfo) localDb.bankInfo = bankInfo;
+  if (emailConfig) localDb.emailConfig = emailConfig;
   writeLocalDb(localDb);
 
   if (supabase) {
@@ -586,6 +597,9 @@ async function saveSettings(pricing, bankInfo) {
       }
       if (bankInfo) {
         await supabase.from('club_settings').upsert({ key: 'bank_info', data: bankInfo }, { onConflict: 'key' });
+      }
+      if (emailConfig) {
+        await supabase.from('club_settings').upsert({ key: 'email_config', data: emailConfig }, { onConflict: 'key' });
       }
       supabaseConnected = true;
     } catch (e) {
@@ -652,5 +666,6 @@ module.exports = {
   getRecentEmails,
   logSentEmail,
   DEFAULT_PRICES,
-  DEFAULT_BANK_INFO
+  DEFAULT_BANK_INFO,
+  DEFAULT_EMAIL_CONFIG
 };
