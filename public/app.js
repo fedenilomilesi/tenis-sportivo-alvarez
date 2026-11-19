@@ -1446,6 +1446,46 @@ async function init() {
 
   // Prompt de Instalación PWA (Agregar a pantalla de inicio)
   setupPwaInstall();
+
+  // Configurar botón Salir / Cerrar App
+  setupExitAppButton();
+}
+
+function setupExitAppButton() {
+  const btnExitHeader = document.getElementById('btn-exit-app');
+  const btnExitMobile = document.getElementById('btn-mobile-exit');
+  const modalExit = document.getElementById('modal-exit-confirm');
+  const btnCancelExit = document.getElementById('btn-cancel-exit');
+  const btnConfirmExit = document.getElementById('btn-confirm-exit');
+
+  const openExitModal = () => {
+    if (modalExit) modalExit.classList.remove('hidden');
+  };
+
+  const closeExitModal = () => {
+    if (modalExit) modalExit.classList.add('hidden');
+  };
+
+  if (btnExitHeader) btnExitHeader.addEventListener('click', openExitModal);
+  if (btnExitMobile) btnExitMobile.addEventListener('click', openExitModal);
+  if (btnCancelExit) btnCancelExit.addEventListener('click', closeExitModal);
+
+  if (btnConfirmExit) {
+    btnConfirmExit.addEventListener('click', () => {
+      // 1. Intentar cerrar ventana nativamente
+      window.close();
+
+      // 2. Si el navegador no permite window.close() directo por permisos de seguridad:
+      setTimeout(() => {
+        // Redirigir a una página limpia o retroceder fuera del historial
+        if (window.history.length > 1) {
+          window.history.back();
+        } else {
+          window.location.href = 'about:blank';
+        }
+      }, 150);
+    });
+  }
 }
 
 let deferredPrompt = null;
