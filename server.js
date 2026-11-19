@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { getSociosList, checkIsSocio, saveSociosList, cleanDni } = require('./sociosManager');
+const dbAdapter = require('./db');
 
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, 'data');
@@ -867,6 +868,9 @@ const server = http.createServer(async (req, res) => {
   });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`Servidor de Reservas Tenis - Sportivo FC de Álvarez corriendo en http://localhost:${PORT}`);
+  try {
+    await dbAdapter.checkSupabaseReady();
+  } catch (e) {}
 });
