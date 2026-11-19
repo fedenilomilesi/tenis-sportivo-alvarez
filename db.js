@@ -30,7 +30,9 @@ let supabaseConnected = false;
 
 try {
   if (SUPABASE_URL && SUPABASE_KEY) {
-    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { persistSession: false }
+    });
   }
 } catch (e) {
   console.warn('No se pudo inicializar cliente de Supabase:', e.message);
@@ -125,7 +127,7 @@ function writeLocalSocios(list) {
   fs.writeFileSync(SOCIOS_FILE, JSON.stringify(list, null, 2), 'utf8');
 }
 
-// Check if Supabase tables exist
+// Check if Supabase tables exist and connection is working
 async function checkSupabaseReady() {
   if (!supabase) return false;
   try {
@@ -146,15 +148,16 @@ async function checkSupabaseReady() {
   }
 }
 
-// Initial check
+// Initial check non-blocking
 checkSupabaseReady();
 
 // --- Users operations ---
 async function getUsers() {
-  if (supabaseConnected) {
+  if (supabase) {
     try {
       const { data, error } = await supabase.from('users').select('*');
       if (!error && data) {
+        supabaseConnected = true;
         return data.map(u => ({
           id: u.id,
           nombre: u.nombre,
@@ -175,10 +178,12 @@ async function getUsers() {
 
 async function findUserByDni(dni) {
   const clean = String(dni || '').trim().replace(/\D/g, '');
-  if (supabaseConnected) {
+  if (!clean) return null;
+  if (supabase) {
     try {
       const { data, error } = await supabase.from('users').select('*').eq('dni', clean).maybeSingle();
       if (!error && data) {
+        supabaseConnected = true;
         return {
           id: data.id,
           nombre: data.nombre,
@@ -193,15 +198,17 @@ async function findUserByDni(dni) {
     } catch (e) {}
   }
   const db = readLocalDb();
-  return db.users.find(u => u.dni === clean);
+  return db.users.find(u => u.dni === clean) || null;
 }
 
 async function findUserByMail(mail) {
   const clean = (mail || '').trim().toLowerCase();
-  if (supabaseConnected) {
+  if (!clean) return null;
+  if (supabase) {
     try {
       const { data, error } = await supabase.from('users').select('*').eq('mail', clean).maybeSingle();
       if (!error && data) {
+        supabaseConnected = true;
         return {
           id: data.id,
           nombre: data.nombre,
@@ -216,14 +223,16 @@ async function findUserByMail(mail) {
     } catch (e) {}
   }
   const db = readLocalDb();
-  return db.users.find(u => (u.mail || '').toLowerCase() === clean);
+  return db.users.find(u => (u.mail || '').toLowerCase() === clean) || null;
 }
 
 async function findUserById(id) {
-  if (supabaseConnected) {
+  if (!id) return null;
+  if (supabase) {
     try {
       const { data, error } = await supabase.from('users').select('*').eq('id', id).maybeSingle();
       if (!error && data) {
+        supabaseConnected = true;
         return {
           id: data.id,
           nombre: data.nombre,
@@ -238,7 +247,7 @@ async function findUserById(id) {
     } catch (e) {}
   }
   const db = readLocalDb();
-  return db.users.find(u => u.id === id);
+  return db.users.find(u => u.id === id) || null;
 }
 
 async function saveOrUpdateUser(userObj) {
@@ -252,7 +261,7 @@ async function saveOrUpdateUser(userObj) {
   }
   writeLocalDb(localDb);
 
-  if (supabaseConnected) {
+  if (supabase) {
     try {
       const payload = {
         id: userObj.id,
@@ -265,6 +274,7 @@ async function saveOrUpdateUser(userObj) {
         member_type: userObj.memberType || 'socio'
       };
       await supabase.from('users').upsert(payload, { onConflict: 'dni' });
+      supabaseConnected = true;
     } catch (e) {
       console.warn('Error guardando usuario en Supabase:', e.message);
     }
@@ -274,12 +284,13 @@ async function saveOrUpdateUser(userObj) {
 
 // --- Bookings operations ---
 async function getBookings(date = null) {
-  if (supabaseConnected) {
+  if (supabase) {
     try {
       let query = supabase.from('bookings').select('*');
       if (date) query = query.eq('date', date);
       const { data, error } = await query;
       if (!error && data) {
+        supabaseConnected = true;
         return data.map(b => ({
           id: b.id,
           date: b.date,
@@ -312,10 +323,12 @@ async function getBookings(date = null) {
 }
 
 async function getBookingById(bookingId) {
-  if (supabaseConnected) {
+  if (!bookingId) return null;
+  if (supabase) {
     try {
       const { data, error } = await supabase.from('bookings').select('*').eq('id', bookingId).maybeSingle();
       if (!error && data) {
+        supabaseConnected = true;
         return {
           id: data.id,
           date: data.date,
@@ -342,7 +355,7 @@ async function getBookingById(bookingId) {
     } catch (e) {}
   }
   const db = readLocalDb();
-  return db.bookings.find(b => b.id === bookingId);
+  return db.bookings.find(b => b.id === bookingId) || null;
 }
 
 async function saveBooking(booking) {
@@ -357,7 +370,7 @@ async function saveBooking(booking) {
   writeLocalDb(localDb);
 
   // Save Supabase
-  if (supabaseConnected) {
+  if (supabase) {
     try {
       const payload = {
         id: booking.id,
@@ -381,7 +394,8 @@ async function saveBooking(booking) {
         expires_at: booking.expiresAt || null,
         confirmed_at: booking.confirmedAt || null
       };
-      await supabase.from('bookings').upsert(payload);
+      await supabase.from('bookings').upsert(payload, { onConflict: 'id' });
+      supabaseConnected = true;
     } catch (e) {
       console.warn('Error guardando reserva en Supabase:', e.message);
     }
@@ -392,13 +406,14 @@ async function saveBooking(booking) {
 async function deleteBookingById(bookingId) {
   // Local
   const localDb = readLocalDb();
-  localDb.bookings = localDb.bookings.filter(b => b.id !== bookingId);
+  localDb.bookings = (localDb.bookings || []).filter(b => b.id !== bookingId);
   writeLocalDb(localDb);
 
   // Supabase
-  if (supabaseConnected) {
+  if (supabase) {
     try {
       await supabase.from('bookings').delete().eq('id', bookingId);
+      supabaseConnected = true;
     } catch (e) {
       console.warn('Error borrando reserva de Supabase:', e.message);
     }
@@ -411,7 +426,7 @@ async function purgeExpiredBookings(now = new Date()) {
   // Local purge
   const localDb = readLocalDb();
   const expiredIds = [];
-  localDb.bookings = localDb.bookings.filter(b => {
+  localDb.bookings = (localDb.bookings || []).filter(b => {
     if (b.status === 'pendiente_pago') {
       const created = new Date(b.createdAt).getTime();
       if (now.getTime() - created > tenMinMs + 30000) {
@@ -424,10 +439,20 @@ async function purgeExpiredBookings(now = new Date()) {
   writeLocalDb(localDb);
 
   // Supabase purge
-  if (supabaseConnected && expiredIds.length > 0) {
+  if (supabase) {
     try {
-      for (const id of expiredIds) {
-        await supabase.from('bookings').delete().eq('id', id);
+      const { data } = await supabase
+        .from('bookings')
+        .select('id, created_at, status')
+        .eq('status', 'pendiente_pago');
+      
+      if (data && data.length > 0) {
+        for (const item of data) {
+          const created = new Date(item.created_at).getTime();
+          if (now.getTime() - created > tenMinMs + 30000) {
+            await supabase.from('bookings').delete().eq('id', item.id);
+          }
+        }
       }
     } catch (e) {}
   }
@@ -435,10 +460,11 @@ async function purgeExpiredBookings(now = new Date()) {
 
 // --- Padron Socios operations ---
 async function getSociosPadron() {
-  if (supabaseConnected) {
+  if (supabase) {
     try {
       const { data, error } = await supabase.from('socios_padron').select('*');
       if (!error && data && data.length > 0) {
+        supabaseConnected = true;
         return data;
       }
     } catch (e) {}
@@ -448,9 +474,8 @@ async function getSociosPadron() {
 
 async function saveSociosPadron(list) {
   writeLocalSocios(list);
-  if (supabaseConnected) {
+  if (supabase) {
     try {
-      // Upsert batch
       const batches = [];
       for (let i = 0; i < list.length; i += 100) {
         batches.push(list.slice(i, i + 100));
@@ -458,6 +483,7 @@ async function saveSociosPadron(list) {
       for (const batch of batches) {
         await supabase.from('socios_padron').upsert(batch, { onConflict: 'dni' });
       }
+      supabaseConnected = true;
     } catch (e) {
       console.warn('Error guardando padrón en Supabase:', e.message);
     }
@@ -469,10 +495,11 @@ async function getSettings() {
   let pricing = { ...DEFAULT_PRICES };
   let bankInfo = { ...DEFAULT_BANK_INFO };
 
-  if (supabaseConnected) {
+  if (supabase) {
     try {
       const { data, error } = await supabase.from('club_settings').select('*');
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
+        supabaseConnected = true;
         data.forEach(item => {
           if (item.key === 'pricing' && item.data) pricing = item.data;
           if (item.key === 'bank_info' && item.data) bankInfo = item.data;
@@ -495,14 +522,15 @@ async function saveSettings(pricing, bankInfo) {
   if (bankInfo) localDb.bankInfo = bankInfo;
   writeLocalDb(localDb);
 
-  if (supabaseConnected) {
+  if (supabase) {
     try {
       if (pricing) {
-        await supabase.from('club_settings').upsert({ key: 'pricing', data: pricing });
+        await supabase.from('club_settings').upsert({ key: 'pricing', data: pricing }, { onConflict: 'key' });
       }
       if (bankInfo) {
-        await supabase.from('club_settings').upsert({ key: 'bank_info', data: bankInfo });
+        await supabase.from('club_settings').upsert({ key: 'bank_info', data: bankInfo }, { onConflict: 'key' });
       }
+      supabaseConnected = true;
     } catch (e) {
       console.warn('Error guardando configuración en Supabase:', e.message);
     }
@@ -511,7 +539,7 @@ async function saveSettings(pricing, bankInfo) {
 
 // --- Sent Emails operations ---
 async function getRecentEmails(limit = 10) {
-  if (supabaseConnected) {
+  if (supabase) {
     try {
       const { data, error } = await supabase
         .from('sent_emails')
@@ -519,6 +547,7 @@ async function getRecentEmails(limit = 10) {
         .order('id', { ascending: false })
         .limit(limit);
       if (!error && data) {
+        supabaseConnected = true;
         return data.map(em => ({
           to: em.to_email,
           content: em.content,
@@ -537,7 +566,7 @@ async function logSentEmail(to, content) {
   localDb.emails.push({ to, content, date: new Date().toISOString() });
   writeLocalDb(localDb);
 
-  if (supabaseConnected) {
+  if (supabase) {
     try {
       await supabase.from('sent_emails').insert({ to_email: to, content });
     } catch (e) {}

@@ -1,12 +1,10 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { getSociosList, checkIsSocio, saveSociosList, cleanDni } = require('./sociosManager');
+const { cleanDni } = require('./sociosManager');
 const dbAdapter = require('./db');
 
 const PORT = process.env.PORT || 3000;
-const DATA_DIR = path.join(__dirname, 'data');
-const DB_FILE = path.join(DATA_DIR, 'db.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 const SLOTS = [
@@ -23,105 +21,8 @@ const COURTS = ['Cancha 1', 'Cancha 2'];
 const PROF_DNIS = ['47039935', '25410483'];
 const ADMIN_DNIS = ['31610066', '00000000'];
 
-const DEFAULT_USERS = [
-  {
-    id: 'admin-fede',
-    nombre: 'Federico',
-    apellido: 'Milesi',
-    dni: '31610066',
-    celular: '3413441162',
-    mail: 'fedenilomilesi@gmail.com',
-    role: 'admin',
-    memberType: 'socio'
-  },
-  {
-    id: 'prof-jarno',
-    nombre: 'Jarno',
-    apellido: 'Cefarelli',
-    dni: '47039935',
-    celular: '3402521352',
-    mail: 'jarnocefarelli@gmail.com',
-    role: 'profesor',
-    memberType: 'socio'
-  },
-  {
-    id: 'prof-leonardo',
-    nombre: 'Leonardo',
-    apellido: 'Albertoli',
-    dni: '25410483',
-    celular: '3402521352',
-    mail: 'leonardoalbertoli@gmail.com',
-    role: 'profesor',
-    memberType: 'socio'
-  },
-  {
-    id: 'admin-sportivo',
-    nombre: 'Administración',
-    apellido: 'Sportivo FC',
-    dni: '00000000',
-    celular: '3402521352',
-    mail: 'admin@sportivoalvarez.com',
-    role: 'admin',
-    memberType: 'socio'
-  }
-];
-
-const DEFAULT_PRICES = {
-  price1: 4500, // 1 no socio
-  price2: 8000, // 2 no socios
-  price3: 11000, // 3 no socios
-  price4: 14000  // 4 no socios
-};
-
-const DEFAULT_BANK_INFO = {
-  banco: 'Banco Macro / Red Link',
-  titular: 'Sportivo Fútbol Club de Álvarez',
-  cuit: '30-68123456-9',
-  cbu: '2850381140094123456789',
-  alias: 'SPORTIVO.ALVAREZ.TENIS',
-  nota: 'Enviar comprobante con nombre del titular o subirlo en la web.'
-};
-
-function ensureDb() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(DB_FILE)) {
-    const initialData = {
-      users: [...DEFAULT_USERS],
-      bookings: [],
-      emails: [],
-      pricing: { ...DEFAULT_PRICES },
-      bankInfo: { ...DEFAULT_BANK_INFO }
-    };
-    fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), 'utf8');
-  }
-}
-
-function readDb() {
-  ensureDb();
-  try {
-    const raw = fs.readFileSync(DB_FILE, 'utf8');
-    const data = JSON.parse(raw);
-    if (!data.emails) data.emails = [];
-    if (!data.pricing) data.pricing = { ...DEFAULT_PRICES };
-    if (!data.bankInfo) data.bankInfo = { ...DEFAULT_BANK_INFO };
-    return data;
-  } catch (e) {
-    return {
-      users: [...DEFAULT_USERS],
-      bookings: [],
-      emails: [],
-      pricing: { ...DEFAULT_PRICES },
-      bankInfo: { ...DEFAULT_BANK_INFO }
-    };
-  }
-}
-
-function writeDb(data) {
-  ensureDb();
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
-}
+const DEFAULT_PRICES = dbAdapter.DEFAULT_PRICES;
+const DEFAULT_BANK_INFO = dbAdapter.DEFAULT_BANK_INFO;
 
 function isAdminUser(dni) {
   const clean = String(dni || '').replace(/\D/g, '');
@@ -225,37 +126,13 @@ function checkBookingWindow(targetDateStr, role, nowInput) {
   return { allowed: true };
 }
 
-// Cleanup pending unconfirmed non-member bookings older than 10 minutes
-function purgeExpiredBookings(db, now) {
-  const tenMinMs = 10 * 60 * 1000;
-  const initialLen = db.bookings.length;
-  db.bookings = db.bookings.filter(b => {
-    if (b.status === 'pendiente_pago') {
-      const created = new Date(b.createdAt).getTime();
-      if (now.getTime() - created > tenMinMs) {
-        return false; // Expire and free up slot!
-      }
-    }
-    return true;
-  });
-  if (db.bookings.length !== initialLen) {
-    writeDb(db);
-  }
-}
-
-// Emulate Email Notification
-function sendConfirmationEmail(db, booking, user) {
-  const isNoSocio = user.memberType === 'no_socio';
+// Emulate Email Notification & Log to Supabase / Local
+async function sendConfirmationEmailAsync(booking, user) {
   const playersListStr = Array.isArray(booking.players) && booking.players.length > 0
     ? booking.players.map((p, idx) => `  ${idx + 2}. ${p.nombre} (${p.isSocio ? 'Socio' : 'No Socio'})`).join('\n')
     : '  (No especificados)';
 
-  const emailItem = {
-    id: 'em-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
-    to: user.mail,
-    subject: `Confirmación de Reserva - ${booking.court} (${booking.slot}) - Sportivo FC Álvarez`,
-    date: new Date().toISOString(),
-    content: `
+  const content = `
 Estimado/a ${user.nombre} ${user.apellido},
 
 ¡Tu turno ha sido confirmado con éxito!
@@ -274,12 +151,10 @@ AVISO MUY IMPORTANTE:
 
 Consultas o administración: 3402 521352
 Sportivo Fútbol Club de Álvarez
-    `.trim()
-  };
+  `.trim();
 
-  db.emails.push(emailItem);
-  console.log(`[EMAIL ENVIADO a ${user.mail}]: ${emailItem.subject}`);
-  return emailItem;
+  await dbAdapter.logSentEmail(user.mail, content);
+  console.log(`[EMAIL ENVIADO a ${user.mail}]: Confirmación de Reserva - ${booking.court} (${booking.slot}) - Sportivo FC Álvarez`);
 }
 
 function sendJson(res, status, payload) {
@@ -321,64 +196,84 @@ const server = http.createServer(async (req, res) => {
 
   // GET /api/players-list (Lista unificada de socios y registrados para los desplegables de jugadores)
   if (pathname === '/api/players-list' && req.method === 'GET') {
-    const db = readDb();
-    const padron = getSociosList();
-    const map = new Map();
+    try {
+      const [users, padron] = await Promise.all([
+        dbAdapter.getUsers(),
+        dbAdapter.getSociosPadron()
+      ]);
+      const map = new Map();
 
-    // 1. Del padrón oficial
-    padron.forEach(s => {
-      const clean = cleanDni(s.dni);
-      map.set(clean, {
-        dni: clean,
-        nombre: s.nombre,
-        isSocio: true,
-        source: 'padron'
+      // 1. Del padrón oficial
+      padron.forEach(s => {
+        const clean = cleanDni(s.dni);
+        map.set(clean, {
+          dni: clean,
+          nombre: s.nombre,
+          isSocio: true,
+          source: 'padron'
+        });
       });
-    });
 
-    // 2. De los usuarios registrados en el sistema
-    db.users.forEach(u => {
-      const clean = cleanDni(u.dni);
-      const isSocio = u.role === 'profesor' || u.role === 'admin' || u.memberType === 'socio' || checkIsSocio(clean);
-      map.set(clean, {
-        dni: clean,
-        nombre: `${u.nombre} ${u.apellido}`,
-        isSocio,
-        source: 'user'
+      // 2. De los usuarios registrados en el sistema
+      users.forEach(u => {
+        const clean = cleanDni(u.dni);
+        const isSocio = u.role === 'profesor' || u.role === 'admin' || u.memberType === 'socio' || map.has(clean);
+        map.set(clean, {
+          dni: clean,
+          nombre: `${u.nombre} ${u.apellido}`,
+          isSocio,
+          source: 'user'
+        });
       });
-    });
 
-    const list = Array.from(map.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
-    return sendJson(res, 200, { players: list });
+      const list = Array.from(map.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
+      return sendJson(res, 200, { players: list });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'Error obteniendo lista de jugadores.' });
+    }
   }
 
   // GET /api/config
   if (pathname === '/api/config' && req.method === 'GET') {
-    const db = readDb();
-    return sendJson(res, 200, {
-      slots: SLOTS,
-      courts: COURTS,
-      professors: db.users.filter(u => u.role === 'profesor'),
-      pricing: db.pricing || DEFAULT_PRICES,
-      bankInfo: db.bankInfo || DEFAULT_BANK_INFO
-    });
+    try {
+      const [settings, users] = await Promise.all([
+        dbAdapter.getSettings(),
+        dbAdapter.getUsers()
+      ]);
+      return sendJson(res, 200, {
+        slots: SLOTS,
+        courts: COURTS,
+        professors: users.filter(u => u.role === 'profesor'),
+        pricing: settings.pricing || DEFAULT_PRICES,
+        bankInfo: settings.bankInfo || DEFAULT_BANK_INFO
+      });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'Error cargando configuración.' });
+    }
   }
 
   // GET & POST /api/admin/settings (Precios por no socios y datos bancarios)
   if (pathname === '/api/admin/settings' && req.method === 'GET') {
-    const db = readDb();
-    return sendJson(res, 200, {
-      pricing: db.pricing || DEFAULT_PRICES,
-      bankInfo: db.bankInfo || DEFAULT_BANK_INFO
-    });
+    try {
+      const settings = await dbAdapter.getSettings();
+      return sendJson(res, 200, {
+        pricing: settings.pricing || DEFAULT_PRICES,
+        bankInfo: settings.bankInfo || DEFAULT_BANK_INFO
+      });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'Error obteniendo configuración admin.' });
+    }
   }
 
   if (pathname === '/api/admin/settings' && req.method === 'POST') {
     try {
       const body = await parseBody(req);
-      const db = readDb();
+      const current = await dbAdapter.getSettings();
+      let newPricing = current.pricing || { ...DEFAULT_PRICES };
+      let newBankInfo = current.bankInfo || { ...DEFAULT_BANK_INFO };
+
       if (body.pricing) {
-        db.pricing = {
+        newPricing = {
           price1: Number(body.pricing.price1) || DEFAULT_PRICES.price1,
           price2: Number(body.pricing.price2) || DEFAULT_PRICES.price2,
           price3: Number(body.pricing.price3) || DEFAULT_PRICES.price3,
@@ -386,7 +281,7 @@ const server = http.createServer(async (req, res) => {
         };
       }
       if (body.bankInfo) {
-        db.bankInfo = {
+        newBankInfo = {
           banco: (body.bankInfo.banco || '').trim(),
           titular: (body.bankInfo.titular || '').trim(),
           cuit: (body.bankInfo.cuit || '').trim(),
@@ -395,12 +290,12 @@ const server = http.createServer(async (req, res) => {
           nota: (body.bankInfo.nota || '').trim()
         };
       }
-      writeDb(db);
+      await dbAdapter.saveSettings(newPricing, newBankInfo);
       return sendJson(res, 200, {
         ok: true,
-        message: 'Precios y datos bancarios actualizados con éxito.',
-        pricing: db.pricing,
-        bankInfo: db.bankInfo
+        message: 'Precios y datos bancarios actualizados con éxito en la base de datos.',
+        pricing: newPricing,
+        bankInfo: newBankInfo
       });
     } catch (e) {
       return sendJson(res, 400, { error: 'Error guardando configuración.' });
@@ -421,21 +316,22 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 400, { error: 'Todos los campos (Nombre, Apellido, DNI, Celular y Mail) son obligatorios.' });
       }
 
-      const db = readDb();
-      
-      // Validación estricta de unicidad 1 DNI <-> 1 solo Mail
-      const userByDni = db.users.find(u => u.dni === dni);
-      const userByMail = db.users.find(u => u.mail === mail);
+      // Validación estricta de unicidad 1 DNI <-> 1 solo Mail en Supabase
+      const [userByDni, userByMail, padron] = await Promise.all([
+        dbAdapter.findUserByDni(dni),
+        dbAdapter.findUserByMail(mail),
+        dbAdapter.getSociosPadron()
+      ]);
 
       // Si el DNI ya está registrado con otro mail diferente, rechazar
-      if (userByDni && userByDni.mail !== mail) {
+      if (userByDni && userByDni.mail && userByDni.mail.toLowerCase() !== mail) {
         return sendJson(res, 409, {
           error: `El DNI ${dni} ya se encuentra registrado con el correo: ${userByDni.mail}. Para ingresar usá ese correo o comunicate con el club.`
         });
       }
 
       // Si el Mail ya está registrado con otro DNI diferente, rechazar
-      if (userByMail && userByMail.dni !== dni) {
+      if (userByMail && userByMail.dni && userByMail.dni !== dni) {
         return sendJson(res, 409, {
           error: `El correo ${mail} ya está asociado al DNI ${userByMail.dni}. Cada documento solo puede tener 1 único correo electrónico.`
         });
@@ -446,7 +342,8 @@ const server = http.createServer(async (req, res) => {
       const isProf = !isAdmin && (isProfessorUser(nombre, apellido, dni) || (user && user.role === 'profesor'));
 
       // Cruce automático con el padrón oficial de socios de tenis por DNI
-      const isRegisteredSocio = isAdmin || isProf || checkIsSocio(dni);
+      const isPadronSocio = padron.some(s => cleanDni(s.dni) === dni);
+      const isRegisteredSocio = isAdmin || isProf || isPadronSocio;
       const memberType = isRegisteredSocio ? 'socio' : 'no_socio';
 
       if (user) {
@@ -469,10 +366,9 @@ const server = http.createServer(async (req, res) => {
           memberType,
           role: isAdmin ? 'admin' : isProf ? 'profesor' : 'socio'
         };
-        db.users.push(user);
       }
 
-      writeDb(db);
+      await dbAdapter.saveOrUpdateUser(user);
       return sendJson(res, 200, { user });
     } catch (e) {
       return sendJson(res, 400, { error: 'Formato de solicitud inválido.' });
@@ -487,12 +383,10 @@ const server = http.createServer(async (req, res) => {
       const dni = String(body.dni || '').trim().replace(/\D/g, '');
       const userId = body.userId;
 
-      const db = readDb();
-      const user = db.users.find(u => 
-        (userId && u.id === userId) ||
-        (mail && u.mail.toLowerCase() === mail) ||
-        (dni && u.dni === dni)
-      );
+      let user = null;
+      if (userId) user = await dbAdapter.findUserById(userId);
+      if (!user && mail) user = await dbAdapter.findUserByMail(mail);
+      if (!user && dni) user = await dbAdapter.findUserByDni(dni);
 
       if (!user) {
         return sendJson(res, 404, { error: 'No se encontró una cuenta con ese correo electrónico o DNI. Por favor completá el registro inicial una sola vez.' });
@@ -500,14 +394,22 @@ const server = http.createServer(async (req, res) => {
 
       // Re-verificar si es admin o profe por DNI al loguearse
       const userCleanDni = cleanDni(user.dni);
+      let roleUpdated = false;
       if (isAdminUser(userCleanDni)) {
-        user.role = 'admin';
-        user.memberType = 'socio';
-        writeDb(db);
+        if (user.role !== 'admin' || user.memberType !== 'socio') {
+          user.role = 'admin';
+          user.memberType = 'socio';
+          roleUpdated = true;
+        }
       } else if (PROF_DNIS.includes(userCleanDni) || isProfessorUser(user.nombre, user.apellido, user.dni)) {
-        user.role = 'profesor';
-        user.memberType = 'socio';
-        writeDb(db);
+        if (user.role !== 'profesor' || user.memberType !== 'socio') {
+          user.role = 'profesor';
+          user.memberType = 'socio';
+          roleUpdated = true;
+        }
+      }
+      if (roleUpdated) {
+        await dbAdapter.saveOrUpdateUser(user);
       }
 
       return sendJson(res, 200, { user });
@@ -518,11 +420,14 @@ const server = http.createServer(async (req, res) => {
 
   // GET /api/bookings
   if (pathname === '/api/bookings' && req.method === 'GET') {
-    const date = parsedUrl.searchParams.get('date');
-    const db = readDb();
-    purgeExpiredBookings(db, new Date());
-    const bookings = date ? db.bookings.filter(b => b.date === date) : db.bookings;
-    return sendJson(res, 200, { bookings });
+    try {
+      const date = parsedUrl.searchParams.get('date');
+      await dbAdapter.purgeExpiredBookings(new Date());
+      const bookings = await dbAdapter.getBookings(date);
+      return sendJson(res, 200, { bookings });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'Error cargando reservas.' });
+    }
   }
 
   // POST /api/bookings
@@ -543,14 +448,17 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 400, { error: 'Horario de turno inválido.' });
       }
 
-      const db = readDb();
-      const user = db.users.find(u => u.id === userId);
+      const [user, settings] = await Promise.all([
+        dbAdapter.findUserById(userId),
+        dbAdapter.getSettings()
+      ]);
+
       if (!user) {
         return sendJson(res, 404, { error: 'Usuario no encontrado. Por favor registrate con tu mail.' });
       }
 
       const now = simulatedNow ? new Date(simulatedNow) : new Date();
-      purgeExpiredBookings(db, now);
+      await dbAdapter.purgeExpiredBookings(now);
 
       const windowCheck = checkBookingWindow(date, user.role, now);
       if (!windowCheck.allowed) {
@@ -563,8 +471,9 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 400, { error: 'No se pueden reservar turnos cuyo horario ya haya comenzado o finalizado.' });
       }
 
-      const existingSlot = db.bookings.find(
-        b => b.date === date && b.court === court && b.slot === slot
+      const existingBookings = await dbAdapter.getBookings(date);
+      const existingSlot = existingBookings.find(
+        b => b.court === court && b.slot === slot
       );
       if (existingSlot) {
         return sendJson(res, 409, {
@@ -573,8 +482,8 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (user.role !== 'profesor') {
-        const userBookingsForDay = db.bookings.filter(
-          b => b.date === date && b.userId === user.id
+        const userBookingsForDay = existingBookings.filter(
+          b => b.userId === user.id
         );
         if (userBookingsForDay.length >= 1) {
           return sendJson(res, 403, {
@@ -601,7 +510,7 @@ const server = http.createServer(async (req, res) => {
       const requiresPayment = nonMembersInGroup.length > 0;
       const countNonMembers = Math.min(Math.max(nonMembersInGroup.length, 1), 4);
       const pricingKey = `price${countNonMembers}`;
-      const amountToPay = requiresPayment ? (db.pricing[pricingKey] || DEFAULT_PRICES[pricingKey]) : 0;
+      const amountToPay = requiresPayment ? (settings.pricing[pricingKey] || DEFAULT_PRICES[pricingKey]) : 0;
 
       const newBooking = {
         id: 'bk-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
@@ -611,9 +520,9 @@ const server = http.createServer(async (req, res) => {
         userId: user.id,
         userName: `${user.nombre} ${user.apellido}`,
         userDni: user.dni,
-        userCelular: user.celular,
+        userCelular: user.celular || '',
         userMail: user.mail,
-        userRole: user.role,
+        userRole: user.role || 'socio',
         memberType: user.memberType || 'socio',
         modalidad,
         players,
@@ -625,19 +534,18 @@ const server = http.createServer(async (req, res) => {
         expiresAt: requiresPayment ? new Date(now.getTime() + 10 * 60 * 1000).toISOString() : null
       };
 
-      db.bookings.push(newBooking);
+      await dbAdapter.saveBooking(newBooking);
 
       if (!requiresPayment) {
-        sendConfirmationEmail(db, newBooking, user);
+        await sendConfirmationEmailAsync(newBooking, user);
       }
 
-      writeDb(db);
       return sendJson(res, 201, {
         booking: newBooking,
         requiresPayment,
         nonMembersInGroup,
         amountToPay,
-        bankInfo: db.bankInfo
+        bankInfo: settings.bankInfo || DEFAULT_BANK_INFO
       });
     } catch (e) {
       return sendJson(res, 400, { error: 'No se pudo procesar la reserva.' });
@@ -651,8 +559,7 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req);
       const { proofName, simulatedNow } = body;
 
-      const db = readDb();
-      const booking = db.bookings.find(b => b.id === bookingId);
+      const booking = await dbAdapter.getBookingById(bookingId);
       if (!booking) {
         return sendJson(res, 404, { error: 'La reserva no existe o ya expiró por superar los 10 minutos.' });
       }
@@ -660,8 +567,7 @@ const server = http.createServer(async (req, res) => {
       const now = simulatedNow ? new Date(simulatedNow) : new Date();
       const created = new Date(booking.createdAt).getTime();
       if (now.getTime() - created > 10 * 60 * 1000) {
-        db.bookings = db.bookings.filter(b => b.id !== bookingId);
-        writeDb(db);
+        await dbAdapter.deleteBookingById(bookingId);
         return sendJson(res, 400, { error: 'Se cumplieron los 10 minutos límites para adjuntar el comprobante. El turno se ha liberado.' });
       }
 
@@ -669,12 +575,13 @@ const server = http.createServer(async (req, res) => {
       booking.paymentProof = proofName || 'comprobante_transferencia.pdf';
       booking.confirmedAt = now.toISOString();
 
-      const user = db.users.find(u => u.id === booking.userId);
+      await dbAdapter.saveBooking(booking);
+
+      const user = await dbAdapter.findUserById(booking.userId);
       if (user) {
-        sendConfirmationEmail(db, booking, user);
+        await sendConfirmationEmailAsync(booking, user);
       }
 
-      writeDb(db);
       return sendJson(res, 200, { booking, message: 'Pago verificado y reserva confirmada con éxito.' });
     } catch (e) {
       return sendJson(res, 400, { error: 'Error al confirmar pago.' });
@@ -683,49 +590,54 @@ const server = http.createServer(async (req, res) => {
 
   // DELETE /api/bookings/:id
   if (pathname.startsWith('/api/bookings/') && req.method === 'DELETE') {
-    const bookingId = pathname.replace('/api/bookings/', '');
-    const userId = parsedUrl.searchParams.get('userId');
-    const userDni = (parsedUrl.searchParams.get('userDni') || '').trim();
-    const userMail = (parsedUrl.searchParams.get('userMail') || '').trim().toLowerCase();
+    try {
+      const bookingId = pathname.replace('/api/bookings/', '');
+      const userId = parsedUrl.searchParams.get('userId');
+      const userDni = (parsedUrl.searchParams.get('userDni') || '').trim();
+      const userMail = (parsedUrl.searchParams.get('userMail') || '').trim().toLowerCase();
 
-    const db = readDb();
-    const index = db.bookings.findIndex(b => b.id === bookingId);
-    if (index === -1) {
-      return sendJson(res, 404, { error: 'Reserva no encontrada.' });
+      const booking = await dbAdapter.getBookingById(bookingId);
+      if (!booking) {
+        return sendJson(res, 404, { error: 'Reserva no encontrada.' });
+      }
+
+      let reqUser = null;
+      if (userId) reqUser = await dbAdapter.findUserById(userId);
+      if (!reqUser && userDni) reqUser = await dbAdapter.findUserByDni(userDni);
+      if (!reqUser && userMail) reqUser = await dbAdapter.findUserByMail(userMail);
+
+      const isOwner = (userId && booking.userId === userId) ||
+                      (userDni && booking.userDni === userDni) ||
+                      (userMail && booking.userMail && booking.userMail.toLowerCase() === userMail) ||
+                      (reqUser && (booking.userId === reqUser.id || booking.userDni === reqUser.dni));
+
+      const isAdmin = (userDni && isAdminUser(userDni)) || 
+                      userDni === '31610066' || 
+                      (reqUser && reqUser.role === 'admin');
+
+      const isProf = (userDni && (userDni === '47039935' || userDni === '25410483')) || 
+                     (reqUser && reqUser.role === 'profesor');
+
+      // Permitir cancelar si es el dueño del turno, si es admin, si es profesor, o si el turno está pendiente de pago
+      if (!isOwner && !isAdmin && !isProf && booking.status !== 'pendiente_pago') {
+        return sendJson(res, 403, { error: 'Solo el titular de la reserva, un profesor o un administrador puede cancelarla.' });
+      }
+
+      await dbAdapter.deleteBookingById(bookingId);
+      return sendJson(res, 200, { ok: true, message: 'Reserva cancelada correctamente.' });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'Error cancelando reserva.' });
     }
-    const booking = db.bookings[index];
-    const reqUser = db.users.find(u => 
-      (userId && u.id === userId) ||
-      (userDni && u.dni === userDni) ||
-      (userMail && u.mail && u.mail.toLowerCase() === userMail)
-    );
-
-    const isOwner = (userId && booking.userId === userId) ||
-                    (userDni && booking.userDni === userDni) ||
-                    (userMail && booking.userMail && booking.userMail.toLowerCase() === userMail) ||
-                    (reqUser && (booking.userId === reqUser.id || booking.userDni === reqUser.dni));
-
-    const isAdmin = (userDni && isAdminUser(userDni)) || 
-                    userDni === '31610066' || 
-                    (reqUser && reqUser.role === 'admin');
-
-    const isProf = (userDni && (userDni === '47039935' || userDni === '25410483')) || 
-                   (reqUser && reqUser.role === 'profesor');
-
-    // Permitir cancelar si es el dueño del turno, si es admin, si es profesor, o si el turno está pendiente de pago
-    if (!isOwner && !isAdmin && !isProf && booking.status !== 'pendiente_pago') {
-      return sendJson(res, 403, { error: 'Solo el titular de la reserva, un profesor o un administrador puede cancelarla.' });
-    }
-
-    db.bookings.splice(index, 1);
-    writeDb(db);
-    return sendJson(res, 200, { ok: true, message: 'Reserva cancelada correctamente.' });
   }
 
   // GET & POST /api/socios (Admin padrón management)
   if (pathname === '/api/socios' && req.method === 'GET') {
-    const list = getSociosList();
-    return sendJson(res, 200, { socios: list, total: list.length });
+    try {
+      const list = await dbAdapter.getSociosPadron();
+      return sendJson(res, 200, { socios: list, total: list.length });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'Error obteniendo padrón.' });
+    }
   }
 
   if (pathname === '/api/socios/import' && req.method === 'POST') {
@@ -741,16 +653,17 @@ const server = http.createServer(async (req, res) => {
         categoria: s.categoria || 'socio'
       })).filter(s => s.dni.length >= 6);
 
-      saveSociosList(formatted);
+      await dbAdapter.saveSociosPadron(formatted);
 
-      // Re-cross existing users in db
-      const db = readDb();
-      db.users.forEach(u => {
+      // Re-cruzar usuarios existentes
+      const users = await dbAdapter.getUsers();
+      for (const u of users) {
         if (u.role !== 'profesor' && u.role !== 'admin') {
-          u.memberType = checkIsSocio(u.dni) ? 'socio' : 'no_socio';
+          const isSocio = formatted.some(s => s.dni === cleanDni(u.dni));
+          u.memberType = isSocio ? 'socio' : 'no_socio';
+          await dbAdapter.saveOrUpdateUser(u);
         }
-      });
-      writeDb(db);
+      }
 
       return sendJson(res, 200, {
         ok: true,
@@ -764,86 +677,99 @@ const server = http.createServer(async (req, res) => {
 
   // GET /api/stats (Admin panel statistics)
   if (pathname === '/api/stats' && req.method === 'GET') {
-    const db = readDb();
-    purgeExpiredBookings(db, new Date());
+    try {
+      await dbAdapter.purgeExpiredBookings(new Date());
 
-    const totalUsers = db.users.length;
-    const sociosCount = db.users.filter(u => u.memberType === 'socio' || !u.memberType).length;
-    const noSociosCount = db.users.filter(u => u.memberType === 'no_socio').length;
-    const totalBookings = db.bookings.length;
+      const [allBookings, users, settings, recentEmails] = await Promise.all([
+        dbAdapter.getBookings(),
+        dbAdapter.getUsers(),
+        dbAdapter.getSettings(),
+        dbAdapter.getRecentEmails(10)
+      ]);
 
-    // Users ranking: most bookings requested
-    const userStats = {};
-    const slotStats = {};
+      const totalUsers = users.length;
+      const sociosCount = users.filter(u => u.memberType === 'socio' || !u.memberType).length;
+      const noSociosCount = users.filter(u => u.memberType === 'no_socio').length;
+      const totalBookings = allBookings.length;
 
-    db.bookings.forEach(b => {
-      // User aggregate
-      if (!userStats[b.userId]) {
-        userStats[b.userId] = {
-          userId: b.userId,
-          name: b.userName,
-          dni: b.userDni,
-          mail: b.userMail,
-          memberType: b.memberType || 'socio',
-          totalBookings: 0,
-          slotsCount: {}
-        };
-      }
-      userStats[b.userId].totalBookings++;
-      userStats[b.userId].slotsCount[b.slot] = (userStats[b.userId].slotsCount[b.slot] || 0) + 1;
+      // Users ranking: most bookings requested
+      const userStats = {};
+      const slotStats = {};
 
-      // Slot general demand
-      slotStats[b.slot] = (slotStats[b.slot] || 0) + 1;
-    });
-
-    const userRanking = Object.values(userStats).map(u => {
-      // Determine if they always book the same slot (blocking others)
-      let favoriteSlot = null;
-      let favoriteSlotCount = 0;
-      for (const [slot, count] of Object.entries(u.slotsCount)) {
-        if (count > favoriteSlotCount) {
-          favoriteSlot = slot;
-          favoriteSlotCount = count;
+      allBookings.forEach(b => {
+        // User aggregate
+        if (!userStats[b.userId]) {
+          userStats[b.userId] = {
+            userId: b.userId,
+            name: b.userName,
+            dni: b.userDni,
+            mail: b.userMail,
+            memberType: b.memberType || 'socio',
+            totalBookings: 0,
+            slotsCount: {}
+          };
         }
-      }
-      const dominancePct = u.totalBookings > 0 ? Math.round((favoriteSlotCount / u.totalBookings) * 100) : 0;
-      return {
-        ...u,
-        favoriteSlot,
-        favoriteSlotCount,
-        dominancePct,
-        isSlotLocker: dominancePct >= 70 && u.totalBookings >= 3
-      };
-    }).sort((a, b) => b.totalBookings - a.totalBookings);
+        userStats[b.userId].totalBookings++;
+        userStats[b.userId].slotsCount[b.slot] = (userStats[b.userId].slotsCount[b.slot] || 0) + 1;
 
-    return sendJson(res, 200, {
-      totalUsers,
-      sociosCount,
-      noSociosCount,
-      totalBookings,
-      allBookings: db.bookings,
-      registeredUsers: db.users.map(u => ({
-        id: u.id,
-        nombre: u.nombre,
-        apellido: u.apellido,
-        dni: u.dni,
-        celular: u.celular,
-        mail: u.mail,
-        role: u.role,
-        memberType: u.memberType
-      })),
-      userRanking,
-      slotStats,
-      pricing: db.pricing || DEFAULT_PRICES,
-      bankInfo: db.bankInfo || DEFAULT_BANK_INFO,
-      recentEmails: db.emails.slice(-10).reverse()
-    });
+        // Slot general demand
+        slotStats[b.slot] = (slotStats[b.slot] || 0) + 1;
+      });
+
+      const userRanking = Object.values(userStats).map(u => {
+        let favoriteSlot = null;
+        let favoriteSlotCount = 0;
+        for (const [slot, count] of Object.entries(u.slotsCount)) {
+          if (count > favoriteSlotCount) {
+            favoriteSlot = slot;
+            favoriteSlotCount = count;
+          }
+        }
+        const dominancePct = u.totalBookings > 0 ? Math.round((favoriteSlotCount / u.totalBookings) * 100) : 0;
+        return {
+          ...u,
+          favoriteSlot,
+          favoriteSlotCount,
+          dominancePct,
+          isSlotLocker: dominancePct >= 70 && u.totalBookings >= 3
+        };
+      }).sort((a, b) => b.totalBookings - a.totalBookings);
+
+      return sendJson(res, 200, {
+        totalUsers,
+        sociosCount,
+        noSociosCount,
+        totalBookings,
+        allBookings,
+        registeredUsers: users.map(u => ({
+          id: u.id,
+          nombre: u.nombre,
+          apellido: u.apellido,
+          dni: u.dni,
+          celular: u.celular,
+          mail: u.mail,
+          role: u.role,
+          memberType: u.memberType
+        })),
+        userRanking,
+        slotStats,
+        pricing: settings.pricing || DEFAULT_PRICES,
+        bankInfo: settings.bankInfo || DEFAULT_BANK_INFO,
+        recentEmails
+      });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'Error cargando estadísticas.' });
+    }
   }
 
   // GET /api/emails (For demo & tracking sent emails)
   if (pathname === '/api/emails' && req.method === 'GET') {
-    const db = readDb();
-    return sendJson(res, 200, { emails: db.emails || [] });
+    try {
+      const emails = await dbAdapter.getRecentEmails(50);
+      return sendJson(res, 200, { emails });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'Error cargando emails.' });
+    }
   }
 
   // Static files
@@ -872,5 +798,7 @@ server.listen(PORT, async () => {
   console.log(`Servidor de Reservas Tenis - Sportivo FC de Álvarez corriendo en http://localhost:${PORT}`);
   try {
     await dbAdapter.checkSupabaseReady();
-  } catch (e) {}
+  } catch (e) {
+    console.error('Error al inicializar conexión con base de datos:', e.message);
+  }
 });
