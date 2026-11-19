@@ -273,13 +273,20 @@ async function saveOrUpdateUser(userObj) {
         role: userObj.role || 'socio',
         member_type: userObj.memberType || 'socio'
       };
-      await supabase.from('users').upsert(payload, { onConflict: 'dni' });
+      await supabase.from('users').upsert(payload, { onConflict: 'id' });
       supabaseConnected = true;
     } catch (e) {
       console.warn('Error guardando usuario en Supabase:', e.message);
     }
   }
   return userObj;
+}
+
+async function updateUser(userId, updates) {
+  const existing = await findUserById(userId);
+  if (!existing) return null;
+  const merged = { ...existing, ...updates };
+  return await saveOrUpdateUser(merged);
 }
 
 // --- Bookings operations ---
@@ -630,6 +637,7 @@ module.exports = {
   findUserByMail,
   findUserById,
   saveOrUpdateUser,
+  updateUser,
   getBookings,
   getBookingById,
   saveBooking,

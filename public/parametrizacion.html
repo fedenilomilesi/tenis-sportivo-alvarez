@@ -389,15 +389,84 @@
               <th>Correo Electrónico</th>
               <th>Condición</th>
               <th>Rol en Sistema</th>
+              <th style="text-align: right;">Acciones</th>
             </tr>
           </thead>
           <tbody id="registered-users-body">
-            <tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 1.5rem;">Cargando usuarios registrados...</td></tr>
+            <tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 1.5rem;">Cargando usuarios registrados...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </main>
+
+  <!-- Modal para Editar Usuario Registrado -->
+  <div id="modal-edit-user" class="payment-modal hidden" style="z-index: 1000;">
+    <div class="payment-modal-content" style="max-width: 520px;">
+      <div class="payment-header">
+        <h3 id="edit-user-modal-title">✏️ Editar Usuario Registrado</h3>
+        <button type="button" onclick="closeEditUserModal()" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:#64748b;">✕</button>
+      </div>
+      <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 1rem;">
+        Podés corregir los datos personales, el teléfono, el correo y cambiar su condición de socio o rol administrativo.
+      </p>
+
+      <form id="form-edit-user">
+        <input type="hidden" id="edit-user-id" />
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 0.85rem;">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">Nombre *:</label>
+            <input type="text" id="edit-user-nombre" required class="input-box" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">Apellido *:</label>
+            <input type="text" id="edit-user-apellido" required class="input-box" />
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 0.85rem;">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">DNI *:</label>
+            <input type="text" id="edit-user-dni" required class="input-box" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">Celular *:</label>
+            <input type="tel" id="edit-user-celular" required class="input-box" />
+          </div>
+        </div>
+
+        <div style="margin-bottom: 0.85rem;">
+          <label style="font-size: 0.85rem; font-weight: 600;">Correo Electrónico (Mail) *:</label>
+          <input type="email" id="edit-user-mail" required class="input-box" />
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 1.25rem;">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">Condición:</label>
+            <select id="edit-user-membertype" class="input-box">
+              <option value="socio">Socio SFC (Reserva directa)</option>
+              <option value="no_socio">No Socio (Requiere transferencia)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">Rol en el Sistema:</label>
+            <select id="edit-user-role" class="input-box">
+              <option value="socio">Jugador / Socio</option>
+              <option value="profesor">Profesor Oficial</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="edit-user-feedback" style="font-size: 0.88rem; font-weight: 600; margin-bottom: 0.75rem;"></div>
+
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+          <button type="button" class="btn-cancel" onclick="closeEditUserModal()">Cancelar</button>
+          <button type="submit" class="btn-primary" style="background: #2563eb;">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script>
     let currentSocios = [];
@@ -773,7 +842,7 @@
         if (!regBody) return;
 
         if (users.length === 0) {
-          regBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 1.5rem;">No hay usuarios registrados aún.</td></tr>';
+          regBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 1.5rem;">No hay usuarios registrados aún.</td></tr>';
           return;
         }
 
@@ -796,6 +865,11 @@
                 ${isAdmin ? '🛡️ Administrador' : isProf ? '🎾 Profesor Oficial' : 'Jugador / Socio'}
               </span>
             </td>
+            <td style="text-align: right;">
+              <button type="button" class="btn-action-edit" onclick="openEditUserModal('${u.id}', '${escapeQuotes(u.nombre)}', '${escapeQuotes(u.apellido)}', '${u.dni}', '${escapeQuotes(u.celular || '')}', '${escapeQuotes(u.mail)}', '${u.memberType || 'socio'}', '${u.role || 'socio'}')">
+                ✏️ Editar
+              </button>
+            </td>
           `;
           regBody.appendChild(tr);
         });
@@ -803,6 +877,66 @@
         console.error('Error cargando usuarios:', err);
       }
     }
+
+    // Modal de Edición de Usuario Registrado
+    window.openEditUserModal = function(id, nombre, apellido, dni, celular, mail, memberType, role) {
+      document.getElementById('edit-user-id').value = id;
+      document.getElementById('edit-user-nombre').value = nombre;
+      document.getElementById('edit-user-apellido').value = apellido;
+      document.getElementById('edit-user-dni').value = dni;
+      document.getElementById('edit-user-celular').value = celular;
+      document.getElementById('edit-user-mail').value = mail;
+      document.getElementById('edit-user-membertype').value = memberType || 'socio';
+      document.getElementById('edit-user-role').value = role || 'socio';
+      document.getElementById('edit-user-modal-title').textContent = `✏️ Editar Usuario: ${nombre} ${apellido}`;
+      document.getElementById('edit-user-feedback').textContent = '';
+      document.getElementById('modal-edit-user').classList.remove('hidden');
+    };
+
+    window.closeEditUserModal = function() {
+      document.getElementById('modal-edit-user').classList.add('hidden');
+    };
+
+    document.getElementById('form-edit-user').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const feedback = document.getElementById('edit-user-feedback');
+      feedback.style.color = '#475569';
+      feedback.textContent = 'Guardando cambios del usuario...';
+
+      const userId = document.getElementById('edit-user-id').value;
+      const payload = {
+        nombre: document.getElementById('edit-user-nombre').value.trim(),
+        apellido: document.getElementById('edit-user-apellido').value.trim(),
+        dni: document.getElementById('edit-user-dni').value.trim(),
+        celular: document.getElementById('edit-user-celular').value.trim(),
+        mail: document.getElementById('edit-user-mail').value.trim().toLowerCase(),
+        memberType: document.getElementById('edit-user-membertype').value,
+        role: document.getElementById('edit-user-role').value
+      };
+
+      try {
+        const res = await fetch(`/api/users/${encodeURIComponent(userId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          feedback.style.color = '#15803d';
+          feedback.textContent = `✅ ${data.message || 'Usuario actualizado con éxito.'}`;
+          await Promise.all([loadRegisteredUsers(), loadSocios()]);
+          setTimeout(() => {
+            closeEditUserModal();
+          }, 1200);
+        } else {
+          feedback.style.color = '#dc2626';
+          feedback.textContent = data.error || 'Error al actualizar usuario.';
+        }
+      } catch (err) {
+        feedback.style.color = '#dc2626';
+        feedback.textContent = 'Error de conexión con el servidor.';
+      }
+    });
 
     initParametrizacion();
   </script>

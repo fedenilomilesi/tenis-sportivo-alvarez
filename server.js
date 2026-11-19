@@ -418,6 +418,79 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // PUT & POST /api/users/:id (Admin & Profesor edit registered user)
+  if ((pathname.startsWith('/api/users/') && req.method === 'PUT') || 
+      (pathname.startsWith('/api/users/') && pathname.endsWith('/update') && req.method === 'POST')) {
+    try {
+      const parts = pathname.replace('/update', '').split('/');
+      const userId = parts[3];
+      const body = await parseBody(req);
+
+      if (!userId) {
+        return sendJson(res, 400, { error: 'ID de usuario no especificado.' });
+      }
+
+      const existingUser = await dbAdapter.findUserById(userId);
+      if (!existingUser) {
+        return sendJson(res, 404, { error: 'Usuario no encontrado.' });
+      }
+
+      const nombre = (body.nombre !== undefined ? body.nombre : existingUser.nombre).trim();
+      const apellido = (body.apellido !== undefined ? body.apellido : existingUser.apellido).trim();
+      const dni = body.dni ? cleanDni(body.dni) : existingUser.dni;
+      const celular = (body.celular !== undefined ? body.celular : existingUser.celular).trim();
+      const mail = (body.mail !== undefined ? body.mail : existingUser.mail).trim().toLowerCase();
+      const memberType = body.memberType || existingUser.memberType || 'socio';
+      const role = body.role || existingUser.role || 'socio';
+
+      if (!nombre || !apellido || !dni || !mail) {
+        return sendJson(res, 400, { error: 'Nombre, Apellido, DNI y Correo Electrónico son obligatorios.' });
+      }
+
+      // Validar unicidad de DNI con otros usuarios
+      const userWithDni = await dbAdapter.findUserByDni(dni);
+      if (userWithDni && userWithDni.id !== userId) {
+        return sendJson(res, 409, { error: `El DNI ${dni} ya está registrado para otro usuario (${userWithDni.nombre} ${userWithDni.apellido}).` });
+      }
+
+      // Validar unicidad de Mail con otros usuarios
+      const userWithMail = await dbAdapter.findUserByMail(mail);
+      if (userWithMail && userWithMail.id !== userId) {
+        return sendJson(res, 409, { error: `El correo ${mail} ya está registrado para otro usuario (${userWithMail.nombre} ${userWithMail.apellido}).` });
+      }
+
+      const updatedUser = {
+        ...existingUser,
+        nombre,
+        apellido,
+        dni,
+        celular,
+        mail,
+        memberType,
+        role
+      };
+
+      await dbAdapter.saveOrUpdateUser(updatedUser);
+
+      // Si se definió como socio, sincronizar con el padrón oficial
+      if (memberType === 'socio') {
+        await dbAdapter.addOrUpdateSocio({
+          dni,
+          nombre: `${nombre} ${apellido}`,
+          categoria: role === 'profesor' ? 'profesor' : 'socio'
+        });
+      }
+
+      return sendJson(res, 200, {
+        ok: true,
+        user: updatedUser,
+        message: `Usuario ${nombre} ${apellido} actualizado con éxito.`
+      });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'Error al actualizar usuario.' });
+    }
+  }
+
   // GET /api/bookings
   if (pathname === '/api/bookings' && req.method === 'GET') {
     try {
