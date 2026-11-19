@@ -1310,6 +1310,55 @@ async function init() {
 
   await loadPlayersList();
   await loadBookingsForSelectedDate();
+
+  // Registro de Service Worker para PWA (Acceso directo en celular / escritorio)
+  if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('/sw.js').catch(err => {
+      console.warn('Service Worker registration skipped:', err);
+    });
+  }
+
+  // Prompt de Instalación PWA (Agregar a pantalla de inicio)
+  setupPwaInstall();
+}
+
+let deferredPrompt = null;
+function setupPwaInstall() {
+  const banner = document.getElementById('pwa-install-banner');
+  const btnInstall = document.getElementById('btn-install-pwa');
+  const btnClose = document.getElementById('btn-close-pwa-banner');
+
+  if (!banner || !btnInstall) return;
+
+  // Si ya la cerró en esta sesión, no volver a mostrar
+  if (sessionStorage.getItem('pwa_banner_dismissed') === 'true') {
+    return;
+  }
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    banner.classList.remove('hidden');
+  });
+
+  btnInstall.addEventListener('click', async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      banner.classList.add('hidden');
+    } else {
+      // Instrucción si el navegador es iOS / Safari u otro
+      alert('Para instalar la App en tu pantalla de inicio:\n\n• En Android (Chrome): Tocá los 3 puntitos arriba a la derecha y elegí "Agregar a la pantalla principal" o "Instalar aplicación".\n\n• En iPhone (Safari): Tocá el botón Compartir (el cuadradito con la flecha hacia arriba) y elegí "Agregar a pantalla de inicio".');
+    }
+  });
+
+  if (btnClose) {
+    btnClose.addEventListener('click', () => {
+      banner.classList.add('hidden');
+      sessionStorage.setItem('pwa_banner_dismissed', 'true');
+    });
+  }
 }
 
 init();

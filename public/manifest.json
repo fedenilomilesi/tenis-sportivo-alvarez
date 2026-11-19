@@ -1,0 +1,25 @@
+{
+  "name": "Tenis Sportivo FC Álvarez",
+  "short_name": "Tenis SFC",
+  "description": "Sistema Oficial de Reserva de Canchas de Tenis del Sportivo Fútbol Club de Álvarez",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#1e3a8a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo-club.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-club.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -4,7 +4,26 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Reservas de Tenis - Sportivo Fútbol Club de Álvarez</title>
+  
+  <!-- Favicon y Web App Manifest -->
   <link rel="icon" type="image/png" href="logo-club.png" />
+  <link rel="apple-touch-icon" href="logo-club.png" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1e3a8a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Tenis SFC" />
+
+  <!-- Open Graph / WhatsApp Preview Meta Tags -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Tenis Sportivo FC Álvarez - Reservas Online" />
+  <meta property="og:description" content="Sistema oficial para reservar turnos en Cancha 1 y Cancha 2 de tenis del Sportivo Fútbol Club de Álvarez." />
+  <meta property="og:image" content="https://tenis-sportivo-alvarez.onrender.com/logo-club.png" />
+  <meta property="og:image:width" content="512" />
+  <meta property="og:image:height" content="512" />
+  <meta property="og:url" content="https://tenis-sportivo-alvarez.onrender.com/" />
+
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -314,6 +333,25 @@
     </div>
   </div>
 
-  <script src="app.js?v=2.4"></script>
+  <!-- Banner flotante para Instalar como App en Celular -->
+  <div id="pwa-install-banner" class="hidden" style="position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); width: 92%; max-width: 440px; background: #0f172a; color: #fff; padding: 0.85rem 1rem; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; border: 1px solid #334155;">
+    <div style="display: flex; align-items: center; gap: 0.65rem;">
+      <img src="logo-club.png" alt="Tenis SFC" style="width: 38px; height: 38px; border-radius: 8px; background: #fff; padding: 2px;" />
+      <div>
+        <strong style="display: block; font-size: 0.88rem; line-height: 1.2;">Tenis SFC Álvarez</strong>
+        <span style="font-size: 0.74rem; color: #94a3b8;">Instalá el acceso directo en tu celular</span>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.4rem;">
+      <button type="button" id="btn-install-pwa" style="background: #2563eb; color: #fff; border: none; padding: 0.45rem 0.85rem; border-radius: 8px; font-weight: 700; font-size: 0.82rem; cursor: pointer;">
+        Instalar
+      </button>
+      <button type="button" id="btn-close-pwa-banner" style="background: none; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer; padding: 0.2rem 0.4rem;">
+        ✕
+      </button>
+    </div>
+  </div>
+
+  <script src="app.js?v=2.5"></script>
 </body>
 </html>
