@@ -84,6 +84,48 @@
           <button type="submit" class="btn-primary btn-full">Ingresar a la Cancha</button>
         </form>
 
+        <!-- Modal para Contraseña de Administrador / Profesor -->
+        <div id="modal-staff-auth" class="payment-modal hidden" style="z-index: 9999;">
+          <div class="payment-modal-content" style="max-width: 420px; border-top: 4px solid #7c3aed;">
+            <div class="payment-header">
+              <h3 id="staff-auth-title" style="color: #6d28d9;">🔐 Seguridad del Club</h3>
+              <button type="button" id="btn-close-staff-modal" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:#64748b;">✕</button>
+            </div>
+            <p id="staff-auth-desc" style="font-size: 0.88rem; color: #475569; margin-bottom: 1rem; line-height: 1.5;">
+              Identificado como Administrador / Profesor Oficial.
+            </p>
+
+            <form id="form-staff-auth">
+              <input type="hidden" id="staff-auth-mail" />
+              <input type="hidden" id="staff-auth-dni" />
+              <input type="hidden" id="staff-auth-is-setup" value="false" />
+
+              <div class="form-group" style="margin-bottom: 0.85rem;">
+                <label id="staff-pass-label" for="staff-pass-input" style="font-size: 0.85rem; font-weight: 700; color: #1e293b;">
+                  Contraseña de Acceso *:
+                </label>
+                <input type="password" id="staff-pass-input" required class="input-box" placeholder="Ingresá tu contraseña" autocomplete="current-password" />
+              </div>
+
+              <div id="staff-pass-confirm-group" class="form-group hidden" style="margin-bottom: 0.85rem;">
+                <label for="staff-pass-confirm" style="font-size: 0.85rem; font-weight: 700; color: #1e293b;">
+                  Confirmar Contraseña *:
+                </label>
+                <input type="password" id="staff-pass-confirm" class="input-box" placeholder="Repetí tu nueva contraseña" autocomplete="new-password" />
+              </div>
+
+              <div id="staff-auth-feedback" style="font-size: 0.84rem; font-weight: 600; margin-bottom: 0.75rem;"></div>
+
+              <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                <button type="button" class="btn-cancel" id="btn-cancel-staff-auth">Cancelar</button>
+                <button type="submit" id="btn-submit-staff-auth" class="btn-primary" style="background: #7c3aed;">
+                  Ingresar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
         <div class="login-divider">
           <span>¿Es tu primera vez reservando?</span>
         </div>

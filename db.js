@@ -612,6 +612,44 @@ const DEFAULT_EMAIL_CONFIG = {
   enabled: true
 };
 
+// --- Staff Passwords Operations (Para profesores y administradores) ---
+async function getStaffPasswords() {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from('club_settings').select('data').eq('key', 'staff_passwords').maybeSingle();
+      if (!error && data && data.data) {
+        return data.data;
+      }
+    } catch (e) {}
+  }
+  const db = readLocalDb();
+  return db.staffPasswords || {};
+}
+
+async function setStaffPassword(dni, password) {
+  const clean = String(dni || '').replace(/\D/g, '');
+  if (!clean || !password) return false;
+  
+  const passwords = await getStaffPasswords();
+  passwords[clean] = String(password).trim();
+
+  // Local
+  const localDb = readLocalDb();
+  localDb.staffPasswords = passwords;
+  writeLocalDb(localDb);
+
+  // Supabase
+  if (supabase) {
+    try {
+      await supabase.from('club_settings').upsert({ key: 'staff_passwords', data: passwords }, { onConflict: 'key' });
+      supabaseConnected = true;
+    } catch (e) {
+      console.warn('Error guardando password en Supabase:', e.message);
+    }
+  }
+  return true;
+}
+
 // --- Settings operations ---
 async function getSettings() {
   let pricing = { ...DEFAULT_PRICES };
@@ -734,5 +772,7 @@ module.exports = {
   DEFAULT_PRICES,
   DEFAULT_SLOTS,
   DEFAULT_BANK_INFO,
-  DEFAULT_EMAIL_CONFIG
+  DEFAULT_EMAIL_CONFIG,
+  getStaffPasswords,
+  setStaffPassword
 };

@@ -938,16 +938,22 @@ async function registerOrUpdateUser(payload) {
   return user;
 }
 
-async function loginByMailOrDni({ mail, dni, userId }) {
+async function loginByMailOrDni({ mail, dni, userId, password }) {
   if (backendAvailable) {
     try {
       const res = await fetch('/api/users/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mail, dni, userId })
+        body: JSON.stringify({ mail, dni, userId, password })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Usuario no encontrado.');
+
+      // Si requiere generar o ingresar contraseña de staff
+      if (data.requirePasswordSetup || data.requirePasswordInput) {
+        return { isStaffAuthChallenge: true, ...data };
+      }
+
       return data.user;
     } catch (err) {
       if (err.message && !err.message.includes('Failed to fetch')) throw err;
@@ -1182,8 +1188,15 @@ quickLoginForm.addEventListener('submit', async e => {
   const mailInput = document.getElementById('login-mail') || document.getElementById('login-dni');
   const mailVal = mailInput.value.trim();
   try {
-    const user = await loginByMailOrDni({ mail: mailVal, dni: mailVal });
-    currentUser = user;
+    const res = await loginByMailOrDni({ mail: mailVal, dni: mailVal });
+    
+    // Si es admin o profesor y requiere contraseña
+    if (res && res.isStaffAuthChallenge) {
+      openStaffAuthModal(res, mailVal);
+      return;
+    }
+
+    currentUser = res;
     localStorage.setItem('sfca_tenis_user', JSON.stringify(currentUser));
     renderProfile();
     renderStatusBanner();
@@ -1193,6 +1206,119 @@ quickLoginForm.addEventListener('submit', async e => {
     showFeedback(err.message || 'Usuario no encontrado.', 'error');
   }
 });
+
+// Modal y Gestión de Contraseñas para Profesores y Administradores
+function openStaffAuthModal(challenge, mailVal) {
+  const modal = document.getElementById('modal-staff-auth');
+  const title = document.getElementById('staff-auth-title');
+  const desc = document.getElementById('staff-auth-desc');
+  const mailHidden = document.getElementById('staff-auth-mail');
+  const dniHidden = document.getElementById('staff-auth-dni');
+  const isSetupHidden = document.getElementById('staff-auth-is-setup');
+  const passLabel = document.getElementById('staff-pass-label');
+  const passInput = document.getElementById('staff-pass-input');
+  const passConfirmGroup = document.getElementById('staff-pass-confirm-group');
+  const passConfirmInput = document.getElementById('staff-pass-confirm');
+  const btnSubmit = document.getElementById('btn-submit-staff-auth');
+  const feedback = document.getElementById('staff-auth-feedback');
+
+  if (!modal) return;
+
+  mailHidden.value = mailVal;
+  dniHidden.value = challenge.userCleanDni || '';
+  feedback.textContent = '';
+  passInput.value = '';
+  if (passConfirmInput) passConfirmInput.value = '';
+
+  const isProf = challenge.userRole === 'profesor';
+
+  if (challenge.requirePasswordSetup) {
+    // Debe CREAR una contraseña por ser su primera vez
+    isSetupHidden.value = 'true';
+    title.textContent = isProf ? '🎾 Crear Contraseña de Profesor' : '🛡️ Crear Contraseña de Administrador';
+    desc.innerHTML = `Hola <strong>${challenge.userName}</strong>. Como tu cuenta tiene permisos de <strong>${isProf ? 'Profesor' : 'Administrador'}</strong>, por seguridad creá tu clave personal para ingresar.`;
+    passLabel.textContent = 'Crear Nueva Contraseña (mínimo 4 caracteres) *:';
+    passInput.placeholder = 'Nueva contraseña';
+    passConfirmGroup.classList.remove('hidden');
+    btnSubmit.textContent = 'Guardar Contraseña e Ingresar';
+  } else {
+    // Ya tiene contraseña, debe INGRESARLA
+    isSetupHidden.value = 'false';
+    title.textContent = isProf ? '🎾 Acceso Profesor' : '🛡️ Acceso Administrador';
+    desc.innerHTML = `Hola <strong>${challenge.userName}</strong>. Ingresá tu contraseña de seguridad para validar tu acceso.`;
+    passLabel.textContent = 'Contraseña de Acceso *:';
+    passInput.placeholder = 'Ingresá tu contraseña';
+    passConfirmGroup.classList.add('hidden');
+    btnSubmit.textContent = 'Validar e Ingresar';
+  }
+
+  modal.classList.remove('hidden');
+  passInput.focus();
+}
+
+function closeStaffAuthModal() {
+  const modal = document.getElementById('modal-staff-auth');
+  if (modal) modal.classList.add('hidden');
+}
+
+const btnCloseStaff = document.getElementById('btn-close-staff-modal');
+const btnCancelStaff = document.getElementById('btn-cancel-staff-auth');
+if (btnCloseStaff) btnCloseStaff.addEventListener('click', closeStaffAuthModal);
+if (btnCancelStaff) btnCancelStaff.addEventListener('click', closeStaffAuthModal);
+
+const formStaffAuth = document.getElementById('form-staff-auth');
+if (formStaffAuth) {
+  formStaffAuth.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const mailVal = document.getElementById('staff-auth-mail').value;
+    const dniVal = document.getElementById('staff-auth-dni').value;
+    const isSetup = document.getElementById('staff-auth-is-setup').value === 'true';
+    const pass = document.getElementById('staff-pass-input').value.trim();
+    const passConfirm = document.getElementById('staff-pass-confirm').value.trim();
+    const feedback = document.getElementById('staff-auth-feedback');
+
+    feedback.style.color = '#7c3aed';
+    feedback.textContent = 'Verificando...';
+
+    if (isSetup) {
+      if (pass.length < 4) {
+        feedback.style.color = '#dc2626';
+        feedback.textContent = 'La contraseña debe tener al menos 4 caracteres.';
+        return;
+      }
+      if (pass !== passConfirm) {
+        feedback.style.color = '#dc2626';
+        feedback.textContent = 'Las contraseñas no coinciden.';
+        return;
+      }
+    }
+
+    try {
+      const res = await loginByMailOrDni({
+        mail: mailVal,
+        dni: dniVal,
+        password: pass
+      });
+
+      if (res && res.isStaffAuthChallenge) {
+        feedback.style.color = '#dc2626';
+        feedback.textContent = res.message || 'Contraseña incorrecta.';
+        return;
+      }
+
+      currentUser = res;
+      localStorage.setItem('sfca_tenis_user', JSON.stringify(currentUser));
+      closeStaffAuthModal();
+      renderProfile();
+      renderStatusBanner();
+      renderCourts();
+      showFeedback(`¡Identidad verificada! Ingresaste como ${currentUser.role === 'profesor' ? 'Profesor' : 'Administrador'}: ${currentUser.nombre} ${currentUser.apellido}.`, 'success');
+    } catch (err) {
+      feedback.style.color = '#dc2626';
+      feedback.textContent = err.message || 'Contraseña incorrecta.';
+    }
+  });
+}
 
 async function loginAsProfessor(userId) {
   try {

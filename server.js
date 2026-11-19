@@ -432,6 +432,45 @@ const server = http.createServer(async (req, res) => {
         await dbAdapter.saveOrUpdateUser(user);
       }
 
+      // Requerir contraseña para Administradores y Profesores
+      const isStaff = user.role === 'admin' || user.role === 'profesor' || isAdminUser(userCleanDni) || PROF_DNIS.includes(userCleanDni);
+      if (isStaff) {
+        const passwords = await dbAdapter.getStaffPasswords();
+        const existingPass = passwords[userCleanDni];
+        const providedPassword = (body.password || '').trim();
+
+        // Caso 1: Primer ingreso sin contraseña configurada aún -> Requiere crearla
+        if (!existingPass) {
+          if (!providedPassword) {
+            return sendJson(res, 200, {
+              requirePasswordSetup: true,
+              userCleanDni,
+              userName: `${user.nombre} ${user.apellido}`,
+              userRole: user.role,
+              message: 'Por seguridad, como sos administrador/profesor tenés que generar una contraseña para tu cuenta.'
+            });
+          }
+          if (providedPassword.length < 4) {
+            return sendJson(res, 400, { error: 'La contraseña debe tener al menos 4 caracteres.' });
+          }
+          await dbAdapter.setStaffPassword(userCleanDni, providedPassword);
+        } else {
+          // Caso 2: Ya tiene contraseña -> Validarla
+          if (!providedPassword) {
+            return sendJson(res, 200, {
+              requirePasswordInput: true,
+              userCleanDni,
+              userName: `${user.nombre} ${user.apellido}`,
+              userRole: user.role,
+              message: 'Ingresá tu contraseña de administrador/profesor.'
+            });
+          }
+          if (providedPassword !== existingPass) {
+            return sendJson(res, 401, { error: 'Contraseña incorrecta. Por favor verificala.' });
+          }
+        }
+      }
+
       return sendJson(res, 200, { user });
     } catch (e) {
       return sendJson(res, 400, { error: 'Solicitud inválida.' });
@@ -565,6 +604,46 @@ const server = http.createServer(async (req, res) => {
       });
     } catch (e) {
       return sendJson(res, 500, { error: 'Error al eliminar usuario.' });
+    }
+  }
+
+  // POST /api/users/staff-password (Crear o cambiar contraseña de admin/profesor)
+  if (pathname === '/api/users/staff-password' && req.method === 'POST') {
+    try {
+      const body = await parseBody(req);
+      const dni = cleanDni(body.dni);
+      const password = (body.password || '').trim();
+      const currentPassword = (body.currentPassword || '').trim();
+
+      if (!dni) {
+        return sendJson(res, 400, { error: 'DNI no especificado.' });
+      }
+
+      const isStaff = isAdminUser(dni) || PROF_DNIS.includes(dni);
+      const user = await dbAdapter.findUserByDni(dni);
+      if (!isStaff && (!user || (user.role !== 'admin' && user.role !== 'profesor'))) {
+        return sendJson(res, 403, { error: 'Solo los administradores o profesores oficiales pueden gestionar una contraseña.' });
+      }
+
+      if (!password || password.length < 4) {
+        return sendJson(res, 400, { error: 'La contraseña debe tener al menos 4 caracteres.' });
+      }
+
+      const passwords = await dbAdapter.getStaffPasswords();
+      const existing = passwords[dni];
+
+      // Si ya existía, validar contraseña actual si se provee
+      if (existing && currentPassword && existing !== currentPassword) {
+        return sendJson(res, 401, { error: 'La contraseña actual ingresada es incorrecta.' });
+      }
+
+      await dbAdapter.setStaffPassword(dni, password);
+      return sendJson(res, 200, {
+        ok: true,
+        message: 'Contraseña establecida exitosamente.'
+      });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'Error al actualizar contraseña.' });
     }
   }
 
