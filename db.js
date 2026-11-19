@@ -490,6 +490,56 @@ async function saveSociosPadron(list) {
   }
 }
 
+async function addOrUpdateSocio(socio) {
+  const clean = String(socio.dni || '').trim().replace(/\D/g, '');
+  if (!clean) return null;
+  const item = {
+    dni: clean,
+    nombre: (socio.nombre || '').trim(),
+    categoria: socio.categoria || 'socio'
+  };
+
+  // Local
+  const list = readLocalSocios();
+  const idx = list.findIndex(s => s.dni === clean);
+  if (idx !== -1) {
+    list[idx] = item;
+  } else {
+    list.push(item);
+  }
+  writeLocalSocios(list);
+
+  // Supabase
+  if (supabase) {
+    try {
+      await supabase.from('socios_padron').upsert(item, { onConflict: 'dni' });
+      supabaseConnected = true;
+    } catch (e) {
+      console.warn('Error guardando socio en Supabase:', e.message);
+    }
+  }
+  return item;
+}
+
+async function deleteSocioByDni(dni) {
+  const clean = String(dni || '').trim().replace(/\D/g, '');
+  if (!clean) return;
+
+  // Local
+  const list = readLocalSocios().filter(s => s.dni !== clean);
+  writeLocalSocios(list);
+
+  // Supabase
+  if (supabase) {
+    try {
+      await supabase.from('socios_padron').delete().eq('dni', clean);
+      supabaseConnected = true;
+    } catch (e) {
+      console.warn('Error borrando socio de Supabase:', e.message);
+    }
+  }
+}
+
 // --- Settings operations ---
 async function getSettings() {
   let pricing = { ...DEFAULT_PRICES };
@@ -587,6 +637,8 @@ module.exports = {
   purgeExpiredBookings,
   getSociosPadron,
   saveSociosPadron,
+  addOrUpdateSocio,
+  deleteSocioByDni,
   getSettings,
   saveSettings,
   getRecentEmails,

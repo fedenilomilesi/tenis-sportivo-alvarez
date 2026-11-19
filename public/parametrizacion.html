@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel de Parametrización y ABM - Sportivo FC Álvarez</title>
+  <link rel="icon" type="image/png" href="logo-club.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .admin-header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #fff;
+      padding: 1.25rem 0;
+      margin-bottom: 2rem;
+    }
+    .nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      padding: 0.5rem 0.9rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .nav-btn:hover {
+      background: rgba(255,255,255,0.25);
+    }
+    .nav-btn-highlight {
+      background: #2563eb;
+    }
+    .nav-btn-highlight:hover {
+      background: #1d4ed8;
+    }
+    .stats-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+    .kpi-card {
+      background: #fff;
+      padding: 1.25rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .kpi-title {
+      font-size: 0.82rem;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .kpi-value {
+      font-size: 1.9rem;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .kpi-sub {
+      font-size: 0.8rem;
+      color: #15803d;
+    }
+    .table-container {
+      overflow-x: auto;
+      margin-top: 1rem;
+      max-height: 480px;
+    }
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      text-align: left;
+    }
+    .admin-table th, .admin-table td {
+      padding: 0.8rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .admin-table th {
+      background: #f8fafc;
+      font-weight: 700;
+      color: #475569;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .badge-socio {
+      background: #dbeafe;
+      color: #1e40af;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .badge-prof {
+      background: #fef3c7;
+      color: #92400e;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .badge-nosocio {
+      background: #ffedd5;
+      color: #c2410c;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .btn-action-edit {
+      background: #eff6ff;
+      color: #2563eb;
+      border: 1px solid #bfdbfe;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-action-edit:hover {
+      background: #dbeafe;
+    }
+    .btn-action-del {
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-left: 0.35rem;
+    }
+    .btn-action-del:hover {
+      background: #fee2e2;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+    .input-box {
+      width: 100%;
+      padding: 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      margin-top: 0.25rem;
+    }
+    .section-desc {
+      font-size: 0.88rem;
+      color: #64748b;
+      margin-bottom: 1.25rem;
+    }
+  </style>
+</head>
+<body>
+  <header class="admin-header">
+    <div class="container header-inner" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+      <div class="brand">
+        <img src="logo-club.png" alt="Sportivo FC Álvarez" class="brand-logo" />
+        <div>
+          <h1>⚙️ Parametrización y ABM</h1>
+          <p class="subtitle">Sportivo Fútbol Club de Álvarez • Gestión de Socios, Precios y Cuentas Bancarias</p>
+        </div>
+      </div>
+      <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+        <a href="index.html" class="nav-btn">← Volver a Reservar</a>
+        <a href="estadisticas.html" class="nav-btn nav-btn-highlight">📊 Ver Estadísticas</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- KPIs resumen de parametrización -->
+    <div class="stats-kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-title">Padrón Oficial de Socios</span>
+        <div class="kpi-value" id="kpi-total-padron" style="color: #2563eb;">-</div>
+        <span class="kpi-sub">Socios activos con reserva directa</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-title">Usuarios Registrados en Web</span>
+        <div class="kpi-value" id="kpi-total-users">-</div>
+        <span class="kpi-sub">Cuentas creadas para reservar</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-title">Tarifa 1 No Socio</span>
+        <div class="kpi-value" id="kpi-price1" style="color: #d97706;">$ -</div>
+        <span class="kpi-sub">Transferencia obligatoria</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-title">Alias Bancario Activo</span>
+        <div class="kpi-value" id="kpi-alias" style="font-size: 1.15rem; color: #1e293b; word-break: break-all;">-</div>
+        <span class="kpi-sub">Para acreditación de comprobantes</span>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 1: ABM DE SOCIOS DE TENIS -->
+    <div class="card" style="margin-bottom: 2rem; border-left: 4px solid #2563eb;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <h2>👥 ABM del Padrón Oficial de Socios de Tenis</h2>
+          <p class="section-desc">
+            Agregá, editá o eliminá socios a mano individualmente, o importá un listado completo. Los DNI en este padrón son reconocidos como Socios Plenos para reservar turnos gratis sin comprobante.
+          </p>
+        </div>
+        <button type="button" id="btn-toggle-import-box" class="btn-outline-sm" style="padding: 0.45rem 0.85rem;">
+          📁 Importación Masiva (Excel / CSV)
+        </button>
+      </div>
+
+      <!-- Panel colapsable de importación masiva -->
+      <div id="import-box" class="hidden" style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
+        <h3 style="font-size: 0.95rem; margin-bottom: 0.35rem; color: #1e293b;">Subir Archivo de Padrón (.csv, .txt)</h3>
+        <p style="font-size: 0.82rem; color: #64748b; margin-bottom: 0.75rem;">
+          El archivo debe contener el DNI y el Nombre de cada socio. Podés subir el padrón completo actualizado.
+        </p>
+        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+          <input type="file" id="file-padron" accept=".csv,.txt,.json" style="padding: 0.35rem; border: 1px solid var(--border); border-radius: 6px;" />
+          <button type="button" class="btn-primary" id="btn-import-file">Procesar e Importar Padrón</button>
+        </div>
+        <div id="import-feedback" style="margin-top: 0.5rem; font-size: 0.88rem; font-weight: 600;"></div>
+      </div>
+
+      <!-- Formulario para agregar / editar un socio a mano -->
+      <div style="background: #f1f5f9; padding: 1.25rem; border-radius: 10px; margin-bottom: 1.5rem; border: 1px solid #e2e8f0;">
+        <h3 id="form-socio-title" style="font-size: 1rem; color: #0f172a; margin-bottom: 0.75rem;">
+          ➕ Cargar o Modificar Socio a Mano
+        </h3>
+        <form id="form-socio-abm">
+          <input type="hidden" id="socio-edit-mode" value="false" />
+          <div class="form-grid">
+            <div>
+              <label style="font-size: 0.85rem; font-weight: 600;">DNI (Sin puntos ni espacios) *:</label>
+              <input type="text" id="socio-dni" required placeholder="Ej: 35123456" class="input-box" />
+            </div>
+            <div>
+              <label style="font-size: 0.85rem; font-weight: 600;">Nombre y Apellido Completo *:</label>
+              <input type="text" id="socio-nombre" required placeholder="Ej: Mariano García" class="input-box" />
+            </div>
+            <div>
+              <label style="font-size: 0.85rem; font-weight: 600;">Categoría en el Club:</label>
+              <select id="socio-categoria" class="input-box">
+                <option value="socio">Socio Oficial</option>
+                <option value="profesor">Profesor Oficial</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="margin-top: 1rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <button type="submit" id="btn-submit-socio" class="btn-primary" style="background: #2563eb;">
+              Guardar Socio en el Padrón
+            </button>
+            <button type="button" id="btn-cancel-socio-edit" class="btn-secondary hidden">
+              Cancelar Edición
+            </button>
+            <span id="socio-abm-feedback" style="font-size: 0.88rem; font-weight: 600;"></span>
+          </div>
+        </form>
+      </div>
+
+      <!-- Buscador y Tabla de Socios en el Padrón -->
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem;">
+        <div style="flex: 1; min-width: 260px; max-width: 420px;">
+          <input type="text" id="search-socio-input" placeholder="🔍 Buscar socio por DNI o Nombre..." class="input-box" style="margin-top: 0;" />
+        </div>
+        <span id="socios-count-badge" style="font-weight: 700; color: #1d4ed8; background: #dbeafe; padding: 0.35rem 0.75rem; border-radius: 999px; font-size: 0.85rem;">
+          - Socios en el Padrón
+        </span>
+      </div>
+
+      <div class="table-container">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>DNI</th>
+              <th>Nombre y Apellido</th>
+              <th>Categoría</th>
+              <th style="text-align: right;">Acciones ABM</th>
+            </tr>
+          </thead>
+          <tbody id="socios-table-body">
+            <tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 1.5rem;">Cargando padrón oficial...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 2: ARANCELES NO SOCIOS -->
+    <div class="card" style="margin-bottom: 2rem; border-left: 4px solid #f59e0b;">
+      <h2>💰 Configuración de Aranceles para No Socios</h2>
+      <p class="section-desc">
+        Valores que el sistema cobra automáticamente por transferencia cuando en la reserva participan jugadores que no son socios del club.
+      </p>
+
+      <form id="admin-pricing-form">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">1 persona No Socia ($):</label>
+            <input type="number" id="cfg-price-1" required class="input-box" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">2 personas No Socias ($):</label>
+            <input type="number" id="cfg-price-2" required class="input-box" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">3 personas No Socias ($):</label>
+            <input type="number" id="cfg-price-3" required class="input-box" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">4 personas No Socias ($):</label>
+            <input type="number" id="cfg-price-4" required class="input-box" />
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+          <button type="submit" class="btn-primary" style="background: #d97706;">Guardar Aranceles</button>
+          <span id="pricing-feedback" style="font-size: 0.88rem; font-weight: 600;"></span>
+        </div>
+      </form>
+    </div>
+
+    <!-- SECCIÓN 3: CUENTAS BANCARIAS -->
+    <div class="card" style="margin-bottom: 2rem; border-left: 4px solid #10b981;">
+      <h2>🏦 Datos de la Cuenta Bancaria Oficial</h2>
+      <p class="section-desc">
+        Estos datos se le muestran al usuario no socio en la pantalla de pago para realizar la transferencia bancaria con el reloj de 10 minutos.
+      </p>
+
+      <form id="admin-bank-form">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">Banco / Entidad:</label>
+            <input type="text" id="cfg-bank-banco" required class="input-box" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">Titular de la Cuenta:</label>
+            <input type="text" id="cfg-bank-titular" required class="input-box" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">CUIT del Club:</label>
+            <input type="text" id="cfg-bank-cuit" required class="input-box" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">CBU:</label>
+            <input type="text" id="cfg-bank-cbu" required class="input-box" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">Alias:</label>
+            <input type="text" id="cfg-bank-alias" required class="input-box" />
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 600;">Nota o Instrucción Adicional:</label>
+            <input type="text" id="cfg-bank-nota" placeholder="Ej: Subir comprobante antes de los 10 min" class="input-box" />
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+          <button type="submit" class="btn-primary" style="background: #059669;">Guardar Datos Bancarios</button>
+          <span id="bank-feedback" style="font-size: 0.88rem; font-weight: 600;"></span>
+        </div>
+      </form>
+    </div>
+
+    <!-- SECCIÓN 4: USUARIOS REGISTRADOS EN LA WEB -->
+    <div class="card" style="margin-bottom: 2rem; border-left: 4px solid #6366f1;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <div>
+          <h2>📱 Cuentas de Usuarios Registradas en la Web</h2>
+          <p class="section-desc">Usuarios que completaron el registro inicial para poder reservar canchas con su correo.</p>
+        </div>
+        <span id="registered-users-count" style="font-weight: 700; color: #4338ca; background: #e0e7ff; padding: 0.35rem 0.75rem; border-radius: 999px; font-size: 0.85rem;">- Registrados</span>
+      </div>
+
+      <div class="table-container">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Nombre y Apellido</th>
+              <th>DNI</th>
+              <th>Celular</th>
+              <th>Correo Electrónico</th>
+              <th>Condición</th>
+              <th>Rol en Sistema</th>
+            </tr>
+          </thead>
+          <tbody id="registered-users-body">
+            <tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 1.5rem;">Cargando usuarios registrados...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let currentSocios = [];
+    let currentPricing = null;
+    let currentBankInfo = null;
+
+    // Cargar todo al inicio
+    async function initParametrizacion() {
+      await Promise.all([loadSettings(), loadSocios(), loadRegisteredUsers()]);
+    }
+
+    // 1. Cargar Configuración (Precios y Banco)
+    async function loadSettings() {
+      try {
+        const res = await fetch('/api/admin/settings');
+        if (!res.ok) throw new Error('Error al obtener ajustes');
+        const data = await res.json();
+        currentPricing = data.pricing || {};
+        currentBankInfo = data.bankInfo || {};
+
+        // Actualizar formulario de precios
+        document.getElementById('cfg-price-1').value = currentPricing.price1 || 4500;
+        document.getElementById('cfg-price-2').value = currentPricing.price2 || 8000;
+        document.getElementById('cfg-price-3').value = currentPricing.price3 || 11000;
+        document.getElementById('cfg-price-4').value = currentPricing.price4 || 14000;
+
+        // KPI Precios
+        const kpiP1 = document.getElementById('kpi-price1');
+        if (kpiP1) kpiP1.textContent = `$ ${(currentPricing.price1 || 4500).toLocaleString('es-AR')}`;
+
+        // Actualizar formulario bancario
+        document.getElementById('cfg-bank-banco').value = currentBankInfo.banco || '';
+        document.getElementById('cfg-bank-titular').value = currentBankInfo.titular || '';
+        document.getElementById('cfg-bank-cuit').value = currentBankInfo.cuit || '';
+        document.getElementById('cfg-bank-cbu').value = currentBankInfo.cbu || '';
+        document.getElementById('cfg-bank-alias').value = currentBankInfo.alias || '';
+        document.getElementById('cfg-bank-nota').value = currentBankInfo.nota || '';
+
+        // KPI Alias
+        const kpiAlias = document.getElementById('kpi-alias');
+        if (kpiAlias) kpiAlias.textContent = currentBankInfo.alias || 'No configurado';
+      } catch (err) {
+        console.error('Error cargando configuración:', err);
+      }
+    }
+
+    // 2. Cargar Padrón de Socios
+    async function loadSocios() {
+      try {
+        const res = await fetch('/api/socios');
+        if (!res.ok) throw new Error('Error al obtener padrón');
+        const data = await res.json();
+        currentSocios = data.socios || [];
+        renderSociosTable(currentSocios);
+
+        const kpiPadron = document.getElementById('kpi-total-padron');
+        if (kpiPadron) kpiPadron.textContent = currentSocios.length;
+
+        const countBadge = document.getElementById('socios-count-badge');
+        if (countBadge) countBadge.textContent = `${currentSocios.length} Socios en el Padrón`;
+      } catch (err) {
+        console.error('Error cargando socios:', err);
+      }
+    }
+
+    // Renderizar tabla de socios
+    function renderSociosTable(list) {
+      const tbody = document.getElementById('socios-table-body');
+      if (!tbody) return;
+
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 1.5rem;">No se encontraron socios en el padrón.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = '';
+      list.forEach(s => {
+        const tr = document.createElement('tr');
+        const isProf = s.categoria === 'profesor';
+        const isProtected = ['31610066', '47039935', '25410483'].includes(s.dni);
+
+        tr.innerHTML = `
+          <td><strong>${s.dni}</strong></td>
+          <td>${s.nombre}</td>
+          <td>
+            <span class="${isProf ? 'badge-prof' : 'badge-socio'}">
+              ${isProf ? '🎾 Profesor Oficial' : 'Socio SFC'}
+            </span>
+          </td>
+          <td style="text-align: right;">
+            <button type="button" class="btn-action-edit" onclick="editSocio('${s.dni}', '${escapeQuotes(s.nombre)}', '${s.categoria}')">
+              ✏️ Editar
+            </button>
+            ${!isProtected ? `
+              <button type="button" class="btn-action-del" onclick="deleteSocio('${s.dni}', '${escapeQuotes(s.nombre)}')">
+                🗑️ Baja
+              </button>
+            ` : '<span style="font-size:0.75rem; color:#94a3b8; margin-left:0.5rem;">(Oficial)</span>'}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function escapeQuotes(str) {
+      return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    // 3. Filtrar socios por búsqueda en tiempo real
+    document.getElementById('search-socio-input').addEventListener('input', (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      if (!q) {
+        renderSociosTable(currentSocios);
+        document.getElementById('socios-count-badge').textContent = `${currentSocios.length} Socios en el Padrón`;
+        return;
+      }
+      const filtered = currentSocios.filter(s => 
+        (s.dni && s.dni.includes(q)) || 
+        (s.nombre && s.nombre.toLowerCase().includes(q))
+      );
+      renderSociosTable(filtered);
+      document.getElementById('socios-count-badge').textContent = `${filtered.length} de ${currentSocios.length} socios`;
+    });
+
+    // 4. Cargar datos en el formulario para editar
+    window.editSocio = function(dni, nombre, categoria) {
+      document.getElementById('socio-dni').value = dni;
+      document.getElementById('socio-dni').readOnly = true;
+      document.getElementById('socio-nombre').value = nombre;
+      document.getElementById('socio-categoria').value = categoria || 'socio';
+      document.getElementById('socio-edit-mode').value = 'true';
+      document.getElementById('form-socio-title').textContent = `✏️ Modificar Socio: ${nombre} (DNI ${dni})`;
+      document.getElementById('btn-submit-socio').textContent = 'Actualizar Datos del Socio';
+      document.getElementById('btn-cancel-socio-edit').classList.remove('hidden');
+      document.getElementById('form-socio-abm').scrollIntoView({ behavior: 'smooth' });
+    };
+
+    // Cancelar edición
+    document.getElementById('btn-cancel-socio-edit').addEventListener('click', resetSocioForm);
+
+    function resetSocioForm() {
+      document.getElementById('socio-dni').value = '';
+      document.getElementById('socio-dni').readOnly = false;
+      document.getElementById('socio-nombre').value = '';
+      document.getElementById('socio-categoria').value = 'socio';
+      document.getElementById('socio-edit-mode').value = 'false';
+      document.getElementById('form-socio-title').textContent = '➕ Cargar o Modificar Socio a Mano';
+      document.getElementById('btn-submit-socio').textContent = 'Guardar Socio en el Padrón';
+      document.getElementById('btn-cancel-socio-edit').classList.add('hidden');
+      document.getElementById('socio-abm-feedback').textContent = '';
+    }
+
+    // 5. Guardar / Agregar socio individual (Submit Form)
+    document.getElementById('form-socio-abm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const feedback = document.getElementById('socio-abm-feedback');
+      feedback.style.color = '#475569';
+      feedback.textContent = 'Guardando socio...';
+
+      const dni = document.getElementById('socio-dni').value.trim();
+      const nombre = document.getElementById('socio-nombre').value.trim();
+      const categoria = document.getElementById('socio-categoria').value;
+
+      try {
+        const res = await fetch('/api/socios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dni, nombre, categoria })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          feedback.style.color = '#15803d';
+          feedback.textContent = `✅ ${data.message || 'Socio guardado correctamente.'}`;
+          resetSocioForm();
+          await loadSocios();
+          await loadRegisteredUsers();
+          setTimeout(() => { feedback.textContent = ''; }, 4000);
+        } else {
+          feedback.style.color = '#dc2626';
+          feedback.textContent = data.error || 'Error al guardar socio.';
+        }
+      } catch (err) {
+        feedback.style.color = '#dc2626';
+        feedback.textContent = 'Error de conexión con el servidor.';
+      }
+    });
+
+    // 6. Dar de baja individual a un socio
+    window.deleteSocio = async function(dni, nombre) {
+      if (!confirm(`¿Estás seguro de que deseás dar de baja del padrón al socio ${nombre} (DNI ${dni})?`)) return;
+
+      try {
+        const res = await fetch(`/api/socios/${encodeURIComponent(dni)}`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`✅ ${data.message}`);
+          await loadSocios();
+          await loadRegisteredUsers();
+        } else {
+          alert(`❌ ${data.error || 'No se pudo eliminar al socio.'}`);
+        }
+      } catch (err) {
+        alert('Error de conexión al eliminar socio.');
+      }
+    };
+
+    // Toggle panel import masivo
+    document.getElementById('btn-toggle-import-box').addEventListener('click', () => {
+      const box = document.getElementById('import-box');
+      box.classList.toggle('hidden');
+    });
+
+    // 7. Importación masiva por archivo
+    document.getElementById('btn-import-file').addEventListener('click', async () => {
+      const fileInput = document.getElementById('file-padron');
+      const feedback = document.getElementById('import-feedback');
+      if (!fileInput.files[0]) {
+        feedback.style.color = '#dc2626';
+        feedback.textContent = 'Por favor seleccioná un archivo CSV o TXT primero.';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const text = e.target.result;
+          const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+          const socios = [];
+
+          lines.forEach(line => {
+            const parts = line.split(/[,;\t]/).map(p => p.trim().replace(/^["']|["']$/g, ''));
+            let dni = '';
+            let nombre = '';
+            parts.forEach(p => {
+              const clean = p.replace(/\D/g, '');
+              if (clean.length >= 6 && clean.length <= 9 && !dni) {
+                dni = clean;
+              } else if (p.length > 2 && !nombre && isNaN(p)) {
+                nombre = p;
+              }
+            });
+            if (dni) {
+              socios.push({ dni, nombre });
+            }
+          });
+
+          if (socios.length === 0) {
+            feedback.style.color = '#dc2626';
+            feedback.textContent = 'No se detectaron DNI válidos en el archivo.';
+            return;
+          }
+
+          const res = await fetch('/api/socios/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ socios })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            feedback.style.color = '#15803d';
+            feedback.textContent = `✅ ${data.message}`;
+            await loadSocios();
+            await loadRegisteredUsers();
+          } else {
+            feedback.style.color = '#dc2626';
+            feedback.textContent = data.error || 'Error al importar padrón.';
+          }
+        } catch (err) {
+          feedback.style.color = '#dc2626';
+          feedback.textContent = 'Error al leer el archivo.';
+        }
+      };
+      reader.readAsText(fileInput.files[0]);
+    });
+
+    // 8. Guardar Aranceles No Socios
+    document.getElementById('admin-pricing-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const feedback = document.getElementById('pricing-feedback');
+      feedback.style.color = '#475569';
+      feedback.textContent = 'Guardando aranceles...';
+
+      const payload = {
+        pricing: {
+          price1: document.getElementById('cfg-price-1').value,
+          price2: document.getElementById('cfg-price-2').value,
+          price3: document.getElementById('cfg-price-3').value,
+          price4: document.getElementById('cfg-price-4').value
+        }
+      };
+
+      try {
+        const res = await fetch('/api/admin/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          feedback.style.color = '#15803d';
+          feedback.textContent = '✅ ¡Aranceles guardados exitosamente en Supabase!';
+          const kpiP1 = document.getElementById('kpi-price1');
+          if (kpiP1) kpiP1.textContent = `$ ${Number(payload.pricing.price1).toLocaleString('es-AR')}`;
+          setTimeout(() => { feedback.textContent = ''; }, 4000);
+        } else {
+          feedback.style.color = '#dc2626';
+          feedback.textContent = data.error || 'Error al guardar aranceles.';
+        }
+      } catch (err) {
+        feedback.style.color = '#dc2626';
+        feedback.textContent = 'Error de conexión con el servidor.';
+      }
+    });
+
+    // 9. Guardar Datos Bancarios
+    document.getElementById('admin-bank-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const feedback = document.getElementById('bank-feedback');
+      feedback.style.color = '#475569';
+      feedback.textContent = 'Guardando datos bancarios...';
+
+      const payload = {
+        bankInfo: {
+          banco: document.getElementById('cfg-bank-banco').value,
+          titular: document.getElementById('cfg-bank-titular').value,
+          cuit: document.getElementById('cfg-bank-cuit').value,
+          cbu: document.getElementById('cfg-bank-cbu').value,
+          alias: document.getElementById('cfg-bank-alias').value,
+          nota: document.getElementById('cfg-bank-nota').value
+        }
+      };
+
+      try {
+        const res = await fetch('/api/admin/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          feedback.style.color = '#15803d';
+          feedback.textContent = '✅ ¡Datos bancarios guardados exitosamente en Supabase!';
+          const kpiAlias = document.getElementById('kpi-alias');
+          if (kpiAlias) kpiAlias.textContent = payload.bankInfo.alias || 'No configurado';
+          setTimeout(() => { feedback.textContent = ''; }, 4000);
+        } else {
+          feedback.style.color = '#dc2626';
+          feedback.textContent = data.error || 'Error al guardar datos bancarios.';
+        }
+      } catch (err) {
+        feedback.style.color = '#dc2626';
+        feedback.textContent = 'Error de conexión con el servidor.';
+      }
+    });
+
+    // 10. Cargar Usuarios Registrados
+    async function loadRegisteredUsers() {
+      try {
+        const res = await fetch('/api/stats');
+        if (!res.ok) return;
+        const data = await res.json();
+        const users = data.registeredUsers || [];
+
+        const kpiUsers = document.getElementById('kpi-total-users');
+        if (kpiUsers) kpiUsers.textContent = users.length;
+
+        const countBadge = document.getElementById('registered-users-count');
+        if (countBadge) countBadge.textContent = `${users.length} Usuarios Registrados`;
+
+        const regBody = document.getElementById('registered-users-body');
+        if (!regBody) return;
+
+        if (users.length === 0) {
+          regBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 1.5rem;">No hay usuarios registrados aún.</td></tr>';
+          return;
+        }
+
+        regBody.innerHTML = '';
+        users.forEach(u => {
+          const tr = document.createElement('tr');
+          const isNoSocio = u.memberType === 'no_socio';
+          const isProf = u.role === 'profesor';
+          const isAdmin = u.role === 'admin';
+          tr.innerHTML = `
+            <td><strong>${u.nombre} ${u.apellido}</strong></td>
+            <td>${u.dni}</td>
+            <td>${u.celular || '-'}</td>
+            <td><a href="mailto:${u.mail}" style="color: #2563eb; text-decoration: none;">${u.mail}</a></td>
+            <td>
+              <span class="${isNoSocio ? 'badge-nosocio' : 'badge-socio'}">${isNoSocio ? 'No Socio (Transf.)' : 'Socio SFC'}</span>
+            </td>
+            <td>
+              <span style="font-weight: 700; color: ${isAdmin ? '#7c3aed' : isProf ? '#b45309' : '#475569'};">
+                ${isAdmin ? '🛡️ Administrador' : isProf ? '🎾 Profesor Oficial' : 'Jugador / Socio'}
+              </span>
+            </td>
+          `;
+          regBody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error('Error cargando usuarios:', err);
+      }
+    }
+
+    initParametrizacion();
+  </script>
+</body>
+</html>

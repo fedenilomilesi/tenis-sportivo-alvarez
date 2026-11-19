@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Panel de Estadísticas y Administración - Sportivo FC Álvarez</title>
+  <title>Panel de Estadísticas y Métricas - Sportivo FC Álvarez</title>
   <link rel="icon" type="image/png" href="logo-club.png" />
   <link rel="stylesheet" href="styles.css" />
   <style>
@@ -15,7 +15,7 @@
     }
     .stats-kpi-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       gap: 1.25rem;
       margin-bottom: 2rem;
     }
@@ -120,24 +120,32 @@
       text-decoration: none;
       font-size: 0.85rem;
       font-weight: 600;
+      transition: background 0.2s;
     }
     .nav-btn:hover {
       background: rgba(255,255,255,0.25);
+    }
+    .nav-btn-highlight {
+      background: #d97706;
+    }
+    .nav-btn-highlight:hover {
+      background: #b45309;
     }
   </style>
 </head>
 <body>
   <header class="admin-header">
-    <div class="container header-inner">
+    <div class="container header-inner" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
       <div class="brand">
         <img src="logo-club.png" alt="Sportivo FC Álvarez" class="brand-logo" />
         <div>
-          <h1>Panel de Administración y Estadísticas</h1>
-          <p class="subtitle">Sportivo Fútbol Club de Álvarez • Tenis y Canchas</p>
+          <h1>📊 Panel de Estadísticas y Métricas</h1>
+          <p class="subtitle">Sportivo Fútbol Club de Álvarez • Reservas, Demanda y Auditoría de Turnos</p>
         </div>
       </div>
-      <div>
-        <a href="index.html" class="nav-btn">← Volver a Reservar Turnos</a>
+      <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+        <a href="index.html" class="nav-btn">← Volver a Reservar</a>
+        <a href="parametrizacion.html" class="nav-btn nav-btn-highlight">⚙️ Parametrización y ABM</a>
       </div>
     </div>
   </header>
@@ -146,12 +154,12 @@
     <!-- KPIs -->
     <div class="stats-kpi-grid">
       <div class="kpi-card">
-        <span class="kpi-title">Padrón Oficial de Socios</span>
-        <div class="kpi-value" id="kpi-padron" style="color: #2563eb;">-</div>
-        <span class="kpi-sub">DNI cargados en sistema</span>
+        <span class="kpi-title">Total Reservas Realizadas</span>
+        <div class="kpi-value" id="kpi-turnos" style="color: #2563eb;">-</div>
+        <span class="kpi-sub">En ambas canchas de tenis</span>
       </div>
       <div class="kpi-card">
-        <span class="kpi-title">Socios Registrados</span>
+        <span class="kpi-title">Socios SFC Registrados</span>
         <div class="kpi-value" id="kpi-socios">-</div>
         <span class="kpi-sub">Habilitados para reservar directo</span>
       </div>
@@ -161,136 +169,39 @@
         <span class="kpi-sub">Abonan por transferencia</span>
       </div>
       <div class="kpi-card">
-        <span class="kpi-title">Total Reservas Realizadas</span>
-        <div class="kpi-value" id="kpi-turnos">-</div>
-        <span class="kpi-sub">En ambas canchas</span>
-      </div>
-      <div class="kpi-card">
         <span class="kpi-title">Mails Enviados</span>
         <div class="kpi-value" id="kpi-emails" style="color: #475569;">0</div>
         <span class="kpi-sub">Confirmaciones registradas</span>
       </div>
     </div>
 
-    <!-- Configuración de Tarifas de No Socios y Datos Bancarios -->
-    <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #f59e0b;">
-      <h2>Configuración de Aranceles (No Socios) y Cuenta Bancaria de Transferencia</h2>
-      <p class="toolbar-desc">
-        Como administrador podés definir el costo según la cantidad de personas No Socias en la cancha y los datos de CBU/Alias a los que deben transferir.
-      </p>
-
-      <form id="admin-settings-form" style="margin-top: 1rem;">
-        <h3 style="font-size: 1rem; color: #1e293b; margin-bottom: 0.75rem;">💰 Aranceles según cantidad de No Socios en el Turno:</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
-          <div>
-            <label style="font-size: 0.85rem; font-weight: 600;">1 persona No Socia ($):</label>
-            <input type="number" id="cfg-price-1" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
-          </div>
-          <div>
-            <label style="font-size: 0.85rem; font-weight: 600;">2 personas No Socias ($):</label>
-            <input type="number" id="cfg-price-2" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
-          </div>
-          <div>
-            <label style="font-size: 0.85rem; font-weight: 600;">3 personas No Socias ($):</label>
-            <input type="number" id="cfg-price-3" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
-          </div>
-          <div>
-            <label style="font-size: 0.85rem; font-weight: 600;">4 personas No Socias ($):</label>
-            <input type="number" id="cfg-price-4" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
-          </div>
-        </div>
-
-        <h3 style="font-size: 1rem; color: #1e293b; margin-bottom: 0.75rem;">🏦 Datos de la Cuenta Bancaria para Transferencias:</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-          <div>
-            <label style="font-size: 0.85rem; font-weight: 600;">Banco / Entidad:</label>
-            <input type="text" id="cfg-bank-banco" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
-          </div>
-          <div>
-            <label style="font-size: 0.85rem; font-weight: 600;">Titular de la Cuenta:</label>
-            <input type="text" id="cfg-bank-titular" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
-          </div>
-          <div>
-            <label style="font-size: 0.85rem; font-weight: 600;">CUIT:</label>
-            <input type="text" id="cfg-bank-cuit" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
-          </div>
-          <div>
-            <label style="font-size: 0.85rem; font-weight: 600;">CBU:</label>
-            <input type="text" id="cfg-bank-cbu" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
-          </div>
-          <div>
-            <label style="font-size: 0.85rem; font-weight: 600;">Alias:</label>
-            <input type="text" id="cfg-bank-alias" required style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
-          </div>
-          <div>
-            <label style="font-size: 0.85rem; font-weight: 600;">Nota / Indicación adicional:</label>
-            <input type="text" id="cfg-bank-nota" placeholder="Ej: Subir comprobante con 10 min de límite" style="width: 100%; padding: 0.55rem; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.25rem;" />
-          </div>
-        </div>
-
-        <div style="display: flex; gap: 0.75rem; align-items: center;">
-          <button type="submit" class="btn-primary" style="background: #d97706;">Guardar Aranceles y Datos Bancarios</button>
-          <span id="cfg-save-feedback" style="font-size: 0.88rem; font-weight: 600;"></span>
-        </div>
-      </form>
-    </div>
-
-    <!-- Padrón de Socios Upload / Import Box -->
-    <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #2563eb;">
-      <h2>Cargar / Actualizar Padrón de Socios de Tenis</h2>
-      <p class="toolbar-desc">
-        Podés subir el listado en formato <strong>Excel (.xlsx, .csv)</strong> o texto con los DNI y Nombres. El sistema cruzará automáticamente los DNI de cada persona que reserve.
-      </p>
-
-      <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
-        <div style="flex: 1; min-width: 250px;">
-          <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.35rem;">
-            Subir archivo (CSV, TXT o JSON):
-          </label>
-          <input type="file" id="file-padron" accept=".csv,.txt,.json" style="padding: 0.4rem; border: 1px solid var(--border); border-radius: 6px; width: 100%;" />
-        </div>
-        <button type="button" class="btn-primary" id="btn-import-file">Procesar e Importar Padrón</button>
-      </div>
-      <div id="import-feedback" style="margin-top: 0.65rem; font-size: 0.88rem; font-weight: 600;"></div>
-    </div>
-
-    <!-- Tabla de Todos los Usuarios Registrados en el Sistema -->
-    <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #10b981;">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+    <!-- Banner directo a Parametrización y ABM -->
+    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <span style="font-size: 1.5rem;">⚙️</span>
         <div>
-          <h2>Listado de Usuarios Registrados en la Base de Datos</h2>
-          <p class="toolbar-desc">Detalle de todos los usuarios registrados para reservar (Nombre, DNI, Celular, Mail y Condición).</p>
+          <strong style="color: #92400e; font-size: 0.95rem;">¿Necesitás cargar socios a mano, modificar precios o cuentas bancarias?</strong>
+          <p style="color: #b45309; font-size: 0.85rem; margin-top: 0.2rem;">
+            Toda la configuración del club y el ABM de socios se gestiona desde el Panel de Parametrización.
+          </p>
         </div>
-        <span id="registered-users-count" style="font-weight: 700; color: #047857; background: #d1fae5; padding: 0.35rem 0.75rem; border-radius: 999px; font-size: 0.85rem;">- Registrados</span>
       </div>
-
-      <div class="table-container">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Nombre y Apellido</th>
-              <th>DNI</th>
-              <th>Celular</th>
-              <th>Correo Electrónico</th>
-              <th>Condición de Socio</th>
-              <th>Rol en Sistema</th>
-            </tr>
-          </thead>
-          <tbody id="registered-users-body">
-            <tr><td colspan="6" style="text-align: center; color: #94a3b8;">Cargando usuarios registrados...</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <a href="parametrizacion.html" class="btn-primary" style="background: #d97706; text-decoration: none; font-size: 0.88rem; padding: 0.55rem 1rem;">
+        Abrir Panel de Parametrización →
+      </a>
     </div>
 
     <!-- Tabla de Todas las Reservas en el Sistema -->
-    <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #3b82f6;">
+    <div class="card" style="margin-bottom: 2rem; border-left: 4px solid #3b82f6;">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
         <div>
-          <h2>Listado de Reservas en la Base de Datos</h2>
-          <p class="toolbar-desc">Todas las reservas registradas (Cancha, Fecha, Horario, Titular, Jugadores, Estado y Acción).</p>
+          <h2>📅 Listado de Reservas en la Base de Datos</h2>
+          <p class="toolbar-desc">Todas las reservas activas (Cancha, Fecha, Horario, Titular, Jugadores, Estado y Cancelación de Admin).</p>
         </div>
-        <span id="all-bookings-count" style="font-weight: 700; color: #1d4ed8; background: #dbeafe; padding: 0.35rem 0.75rem; border-radius: 999px; font-size: 0.85rem;">- Reservas</span>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <span id="all-bookings-count" style="font-weight: 700; color: #1d4ed8; background: #dbeafe; padding: 0.35rem 0.75rem; border-radius: 999px; font-size: 0.85rem;">- Reservas</span>
+          <button class="btn-secondary" id="btn-refresh-stats" style="padding: 0.35rem 0.75rem; font-size: 0.82rem;">🔄 Actualizar</button>
+        </div>
       </div>
 
       <div class="table-container">
@@ -306,20 +217,19 @@
             </tr>
           </thead>
           <tbody id="all-bookings-body">
-            <tr><td colspan="6" style="text-align: center; color: #94a3b8;">Cargando reservas...</td></tr>
+            <tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 1.5rem;">Cargando reservas...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
 
     <!-- Ranking Table & Detection of slot locking -->
-    <div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card" style="margin-bottom: 2rem; border-left: 4px solid #ef4444;">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
         <div>
-          <h2>Ranking de Usuarios: Frecuencia y Detección de Bloqueo de Turnos</h2>
+          <h2>🏆 Ranking de Usuarios: Frecuencia y Detección de Bloqueo de Turnos</h2>
           <p class="toolbar-desc">Identifica quiénes piden más turnos y si monopolizan siempre el mismo horario bloqueando al resto de los socios.</p>
         </div>
-        <button class="btn-secondary" id="btn-refresh-stats">Actualizar Métricas</button>
       </div>
 
       <div class="table-container">
@@ -336,15 +246,15 @@
             </tr>
           </thead>
           <tbody id="ranking-table-body">
-            <tr><td colspan="7" style="text-align: center; color: #94a3b8;">Cargando estadísticas...</td></tr>
+            <tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 1.5rem;">Cargando estadísticas...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
 
     <!-- Demand by Time Slot -->
-    <div class="card" style="margin-bottom: 1.5rem;">
-      <h2>Demanda por Horario Oficial</h2>
+    <div class="card" style="margin-bottom: 2rem; border-left: 4px solid #10b981;">
+      <h2>📊 Demanda por Horario Oficial</h2>
       <p class="toolbar-desc">Conocé qué horarios son los más solicitados por los socios para organizar los mantenimientos de polvo de ladrillo.</p>
       <div class="table-container">
         <table class="admin-table">
@@ -356,16 +266,16 @@
             </tr>
           </thead>
           <tbody id="slots-demand-body">
-            <tr><td colspan="3" style="text-align: center; color: #94a3b8;">Cargando demanda...</td></tr>
+            <tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 1.5rem;">Cargando demanda...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
 
     <!-- Sent confirmation emails log -->
-    <div class="card">
-      <h2>Registro de Mails de Confirmación Enviados</h2>
-      <p class="toolbar-desc">Comprueba los mensajes enviados a los usuarios recordando que si no usan el turno deben cancelarlo.</p>
+    <div class="card" style="border-left: 4px solid #64748b;">
+      <h2>✉️ Registro de Mails de Confirmación Enviados</h2>
+      <p class="toolbar-desc">Auditoría de mensajes enviados a los usuarios recordando que si no usan el turno deben cancelarlo a tiempo.</p>
       <div id="emails-log-list" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1rem;">
         <p style="color: #94a3b8;">No hay correos enviados todavía.</p>
       </div>
@@ -457,44 +367,11 @@
           }
         }
 
-        // Populate registered users table
-        const regBody = document.getElementById('registered-users-body');
-        const regCount = document.getElementById('registered-users-count');
-        if (data.registeredUsers && data.registeredUsers.length > 0) {
-          if (regCount) regCount.textContent = `${data.registeredUsers.length} Usuarios Registrados`;
-          if (regBody) {
-            regBody.innerHTML = '';
-            data.registeredUsers.forEach(u => {
-              const tr = document.createElement('tr');
-              const isNoSocio = u.memberType === 'no_socio';
-              const isProf = u.role === 'profesor';
-              const isAdmin = u.role === 'admin';
-              tr.innerHTML = `
-                <td><strong>${u.nombre} ${u.apellido}</strong></td>
-                <td>${u.dni}</td>
-                <td>${u.celular || '-'}</td>
-                <td><a href="mailto:${u.mail}" style="color: #2563eb; text-decoration: none;">${u.mail}</a></td>
-                <td>
-                  <span class="${isNoSocio ? 'badge-nosocio' : 'badge-socio'}">${isNoSocio ? 'No Socio (Transf.)' : 'Socio SFC'}</span>
-                </td>
-                <td>
-                  <span style="font-weight: 700; color: ${isAdmin ? '#7c3aed' : isProf ? '#b45309' : '#475569'};">
-                    ${isAdmin ? '🛡️ Administrador' : isProf ? '🎾 Profesor Oficial' : 'Jugador / Socio'}
-                  </span>
-                </td>
-              `;
-              regBody.appendChild(tr);
-            });
-          }
-        } else if (regBody) {
-          regBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #94a3b8;">No hay usuarios registrados aún.</td></tr>';
-        }
-
         // Populate ranking table
         const tbody = document.getElementById('ranking-table-body');
         if (tbody) {
           if (!data.userRanking || data.userRanking.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #94a3b8;">Aún no se registraron reservas en el sistema.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 1.5rem;">Aún no se registraron reservas en el sistema.</td></tr>';
           } else {
             tbody.innerHTML = '';
             data.userRanking.forEach(u => {
@@ -578,152 +455,10 @@
             });
           }
         }
-
-        // Cargar tarifas y datos bancarios en el formulario de configuración
-        if (data.pricing) {
-          const p1 = document.getElementById('cfg-price-1');
-          const p2 = document.getElementById('cfg-price-2');
-          const p3 = document.getElementById('cfg-price-3');
-          const p4 = document.getElementById('cfg-price-4');
-          if (p1) p1.value = data.pricing.price1 || 4500;
-          if (p2) p2.value = data.pricing.price2 || 8000;
-          if (p3) p3.value = data.pricing.price3 || 11000;
-          if (p4) p4.value = data.pricing.price4 || 14000;
-        }
-        if (data.bankInfo) {
-          const b1 = document.getElementById('cfg-bank-banco');
-          const b2 = document.getElementById('cfg-bank-titular');
-          const b3 = document.getElementById('cfg-bank-cuit');
-          const b4 = document.getElementById('cfg-bank-cbu');
-          const b5 = document.getElementById('cfg-bank-alias');
-          const b6 = document.getElementById('cfg-bank-nota');
-          if (b1) b1.value = data.bankInfo.banco || '';
-          if (b2) b2.value = data.bankInfo.titular || '';
-          if (b3) b3.value = data.bankInfo.cuit || '';
-          if (b4) b4.value = data.bankInfo.cbu || '';
-          if (b5) b5.value = data.bankInfo.alias || '';
-          if (b6) b6.value = data.bankInfo.nota || '';
-        }
-
-        // Load socios padrón count
-        try {
-          const sRes = await fetch('/api/socios');
-          if (sRes.ok) {
-            const sData = await sRes.json();
-            setTxt('kpi-padron', sData.total || 0);
-          }
-        } catch(e) {}
       } catch (err) {
         console.error('Error cargando estadísticas:', err);
       }
     }
-
-    // Handle Padron file import
-    document.getElementById('btn-import-file').addEventListener('click', async () => {
-      const fileInput = document.getElementById('file-padron');
-      const feedback = document.getElementById('import-feedback');
-      if (!fileInput.files[0]) {
-        feedback.style.color = '#dc2626';
-        feedback.textContent = 'Por favor seleccioná un archivo CSV o TXT primero.';
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const text = e.target.result;
-          const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-          const socios = [];
-
-          lines.forEach(line => {
-            const parts = line.split(/[,;\t]/).map(p => p.trim().replace(/^["']|["']$/g, ''));
-            let dni = '';
-            let nombre = '';
-            parts.forEach(p => {
-              const clean = p.replace(/\D/g, '');
-              if (clean.length >= 6 && clean.length <= 9 && !dni) {
-                dni = clean;
-              } else if (p.length > 2 && !nombre && isNaN(p)) {
-                nombre = p;
-              }
-            });
-            if (dni) {
-              socios.push({ dni, nombre });
-            }
-          });
-
-          if (socios.length === 0) {
-            feedback.style.color = '#dc2626';
-            feedback.textContent = 'No se detectaron DNI válidos en el archivo. Verificá que contenga los números de documento.';
-            return;
-          }
-
-          const res = await fetch('/api/socios/import', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ socios })
-          });
-          const data = await res.json();
-          if (res.ok) {
-            feedback.style.color = '#15803d';
-            feedback.textContent = `✅ ${data.message}`;
-            loadStats();
-          } else {
-            feedback.style.color = '#dc2626';
-            feedback.textContent = data.error || 'Error al importar padrón.';
-          }
-        } catch (err) {
-          feedback.style.color = '#dc2626';
-          feedback.textContent = 'Error al leer el archivo.';
-        }
-      };
-      reader.readAsText(fileInput.files[0]);
-    });
-
-    // Guardar Aranceles y Datos Bancarios
-    document.getElementById('admin-settings-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const feedback = document.getElementById('cfg-save-feedback');
-      feedback.style.color = '#475569';
-      feedback.textContent = 'Guardando configuración...';
-
-      const payload = {
-        pricing: {
-          price1: document.getElementById('cfg-price-1').value,
-          price2: document.getElementById('cfg-price-2').value,
-          price3: document.getElementById('cfg-price-3').value,
-          price4: document.getElementById('cfg-price-4').value
-        },
-        bankInfo: {
-          banco: document.getElementById('cfg-bank-banco').value,
-          titular: document.getElementById('cfg-bank-titular').value,
-          cuit: document.getElementById('cfg-bank-cuit').value,
-          cbu: document.getElementById('cfg-bank-cbu').value,
-          alias: document.getElementById('cfg-bank-alias').value,
-          nota: document.getElementById('cfg-bank-nota').value
-        }
-      };
-
-      try {
-        const res = await fetch('/api/admin/settings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (res.ok) {
-          feedback.style.color = '#15803d';
-          feedback.textContent = '✅ ¡Precios y datos bancarios actualizados correctamente!';
-          setTimeout(() => { feedback.textContent = ''; }, 5000);
-        } else {
-          feedback.style.color = '#dc2626';
-          feedback.textContent = data.error || 'Error al guardar.';
-        }
-      } catch (err) {
-        feedback.style.color = '#dc2626';
-        feedback.textContent = 'Error de conexión con el servidor.';
-      }
-    });
 
     document.getElementById('btn-refresh-stats').addEventListener('click', loadStats);
     loadStats();

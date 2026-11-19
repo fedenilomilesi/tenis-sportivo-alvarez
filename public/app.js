@@ -424,9 +424,11 @@ function renderProfile() {
   const navAdminBtn = document.getElementById('nav-admin-btn');
   const simControls = document.getElementById('sim-controls-wrapper');
 
+  const adminNavGroup = document.getElementById('admin-nav-group');
   if (!currentUser) {
     authCard.classList.remove('hidden');
     profileCard.classList.add('hidden');
+    if (adminNavGroup) adminNavGroup.style.display = 'none';
     if (navAdminBtn) navAdminBtn.style.display = 'none';
     if (simControls) simControls.style.display = 'none';
     if (mobileUserName && mobileUserStatus) {
@@ -442,8 +444,10 @@ function renderProfile() {
   const isProf = currentUser.role === 'profesor';
   const isAdmin = currentUser.role === 'admin';
 
-  // Solo profesores o administradores tienen acceso a panel
-  if (navAdminBtn) {
+  // Solo profesores o administradores tienen acceso a paneles de gestión
+  if (adminNavGroup) {
+    adminNavGroup.style.display = (isProf || isAdmin) ? 'flex' : 'none';
+  } else if (navAdminBtn) {
     navAdminBtn.style.display = (isProf || isAdmin) ? 'inline-flex' : 'none';
   }
 

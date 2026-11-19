@@ -630,13 +630,80 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // GET & POST /api/socios (Admin padrón management)
+  // GET, POST & DELETE /api/socios (Admin padrón management & ABM individual)
   if (pathname === '/api/socios' && req.method === 'GET') {
     try {
       const list = await dbAdapter.getSociosPadron();
       return sendJson(res, 200, { socios: list, total: list.length });
     } catch (e) {
       return sendJson(res, 500, { error: 'Error obteniendo padrón.' });
+    }
+  }
+
+  // Alta o Modificación manual de 1 socio
+  if (pathname === '/api/socios' && req.method === 'POST') {
+    try {
+      const body = await parseBody(req);
+      const dni = cleanDni(body.dni);
+      const nombre = (body.nombre || '').trim();
+      const categoria = body.categoria || 'socio';
+
+      if (!dni || dni.length < 6) {
+        return sendJson(res, 400, { error: 'El DNI debe tener al menos 6 dígitos numéricos.' });
+      }
+      if (!nombre) {
+        return sendJson(res, 400, { error: 'El Nombre y Apellido es obligatorio.' });
+      }
+
+      const item = await dbAdapter.addOrUpdateSocio({ dni, nombre, categoria });
+
+      // Si el usuario ya está registrado en users, actualizar condición de socio
+      const user = await dbAdapter.findUserByDni(dni);
+      if (user && user.role !== 'admin' && user.role !== 'profesor') {
+        user.memberType = 'socio';
+        await dbAdapter.saveOrUpdateUser(user);
+      }
+
+      return sendJson(res, 201, {
+        ok: true,
+        socio: item,
+        message: `Socio ${nombre} (DNI ${dni}) guardado exitosamente en el padrón oficial.`
+      });
+    } catch (e) {
+      return sendJson(res, 400, { error: 'Error al agregar o modificar socio.' });
+    }
+  }
+
+  // Baja individual de socio del padrón
+  if (pathname.startsWith('/api/socios/') && req.method === 'DELETE') {
+    try {
+      const rawDni = pathname.replace('/api/socios/', '');
+      const dni = cleanDni(rawDni);
+
+      if (!dni) {
+        return sendJson(res, 400, { error: 'DNI inválido.' });
+      }
+
+      // Proteger a los administradores y profesores del club
+      if (['31610066', '47039935', '25410483'].includes(dni)) {
+        return sendJson(res, 403, { error: 'No se puede dar de baja del padrón a administradores o profesores oficiales.' });
+      }
+
+      await dbAdapter.deleteSocioByDni(dni);
+
+      // Si el usuario está registrado, su condición pasa a no socio
+      const user = await dbAdapter.findUserByDni(dni);
+      if (user && user.role !== 'admin' && user.role !== 'profesor') {
+        user.memberType = 'no_socio';
+        await dbAdapter.saveOrUpdateUser(user);
+      }
+
+      return sendJson(res, 200, {
+        ok: true,
+        message: `El socio con DNI ${dni} ha sido dado de baja del padrón oficial.`
+      });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'Error al eliminar socio.' });
     }
   }
 
