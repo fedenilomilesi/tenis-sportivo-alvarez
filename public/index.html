@@ -48,10 +48,6 @@
             <strong id="current-time-display">--/--/---- --:--:--</strong>
           </div>
         </div>
-        <!-- Botón Salir / Cerrar App -->
-        <button type="button" id="btn-exit-app" title="Cerrar la aplicación" style="display: inline-flex; align-items: center; gap: 0.35rem; background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid rgba(239,68,68,0.4); padding: 0.45rem 0.75rem; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: background 0.2s;">
-          🚪 Salir
-        </button>
       </div>
     </div>
   </header>
@@ -66,14 +62,9 @@
           <small id="mobile-user-status">Completá tus datos para reservar</small>
         </div>
       </div>
-      <div style="display: flex; gap: 0.4rem; align-items: center;">
-        <button type="button" class="btn-mobile-auth" id="btn-toggle-auth-modal">
-          Identificarme
-        </button>
-        <button type="button" id="btn-mobile-exit" title="Cerrar la aplicación" style="background: rgba(239,68,68,0.15); color: #dc2626; border: 1px solid rgba(239,68,68,0.3); padding: 0.4rem 0.6rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; white-space: nowrap;">
-          🚪 Salir
-        </button>
-      </div>
+      <button type="button" class="btn-mobile-auth" id="btn-toggle-auth-modal">
+        Identificarme / Cambiar
+      </button>
     </div>
 
     <!-- Left Column: User Registration / Active Profile & Rules -->
@@ -403,25 +394,6 @@
     </div>
   </div>
 
-  <!-- Modal de confirmación para salir / cerrar -->
-  <div id="modal-exit-confirm" class="payment-modal hidden" style="z-index: 99999;">
-    <div class="payment-modal-content" style="max-width: 380px; text-align: center;">
-      <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🚪</div>
-      <h3 style="margin-bottom: 0.5rem; color: #0f172a;">¿Deseás salir de la aplicación?</h3>
-      <p style="font-size: 0.88rem; color: #64748b; margin-bottom: 1.25rem; line-height: 1.5;">
-        Podés cerrar la aplicación y volver a abrirla cuando quieras desde tu pantalla de inicio.
-      </p>
-      <div style="display: flex; gap: 0.75rem; justify-content: center;">
-        <button type="button" id="btn-cancel-exit" class="btn-cancel" style="padding: 0.55rem 1.1rem; cursor: pointer;">
-          Cancelar
-        </button>
-        <button type="button" id="btn-confirm-exit" class="btn-primary" style="background: #dc2626; padding: 0.55rem 1.1rem; cursor: pointer;">
-          Salir ahora
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <script src="app.js?v=2.7"></script>
+  <script src="app.js?v=2.8"></script>
 </body>
 </html>
