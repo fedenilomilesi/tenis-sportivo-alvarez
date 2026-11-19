@@ -983,23 +983,6 @@
       }
     };
 
-      try {
-        const res = await fetch(`/api/socios/${encodeURIComponent(dni)}`, {
-          method: 'DELETE'
-        });
-        const data = await res.json();
-        if (res.ok) {
-          alert(`✅ ${data.message}`);
-          await loadSocios();
-          await loadRegisteredUsers();
-        } else {
-          alert(`❌ ${data.error || 'No se pudo eliminar al socio.'}`);
-        }
-      } catch (err) {
-        alert('Error de conexión al eliminar socio.');
-      }
-    };
-
     // Toggle panel import masivo
     document.getElementById('btn-toggle-import-box').addEventListener('click', () => {
       const box = document.getElementById('import-box');
