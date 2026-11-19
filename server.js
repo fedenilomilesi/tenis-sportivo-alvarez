@@ -1042,7 +1042,7 @@ const server = http.createServer(async (req, res) => {
         dbAdapter.getBookings(),
         dbAdapter.getUsers(),
         dbAdapter.getSettings(),
-        dbAdapter.getRecentEmails(10)
+        dbAdapter.getRecentEmails(200)
       ]);
 
       const totalUsers = users.length;

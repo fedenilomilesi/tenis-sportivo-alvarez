@@ -109,6 +109,62 @@
       white-space: pre-wrap;
       color: #334155;
     }
+    .month-group-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      margin-bottom: 0.85rem;
+      overflow: hidden;
+      background: #fff;
+    }
+    .month-group-header {
+      background: #f8fafc;
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+      transition: background 0.2s;
+    }
+    .month-group-header:hover {
+      background: #f1f5f9;
+    }
+    .month-group-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .email-item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      border-top: 1px solid #f1f5f9;
+      cursor: pointer;
+      font-size: 0.88rem;
+      transition: background 0.15s;
+    }
+    .email-item-row:hover {
+      background: #f8fafc;
+    }
+    .email-badge-tipo {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    .email-badge-confirm {
+      background: #dcfce7;
+      color: #15803d;
+    }
+    .email-badge-cancel {
+      background: #fee2e2;
+      color: #dc2626;
+    }
     .nav-btn {
       display: inline-flex;
       align-items: center;
@@ -274,13 +330,39 @@
 
     <!-- Sent confirmation emails log -->
     <div class="card" style="border-left: 4px solid #64748b;">
-      <h2>✉️ Registro de Mails de Confirmación Enviados</h2>
-      <p class="toolbar-desc">Auditoría de mensajes enviados a los usuarios recordando que si no usan el turno deben cancelarlo a tiempo.</p>
-      <div id="emails-log-list" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1rem;">
-        <p style="color: #94a3b8;">No hay correos enviados todavía.</p>
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;">
+        <div>
+          <h2>✉️ Registro de Mails Enviados</h2>
+          <p class="toolbar-desc" style="margin-bottom: 0;">Historial agrupado por mes de confirmaciones y avisos de cancelación automáticos.</p>
+        </div>
+        <span id="emails-count-badge" style="font-size: 0.82rem; font-weight: 700; background: #f1f5f9; color: #475569; padding: 0.3rem 0.75rem; border-radius: 999px;">
+          - Correos
+        </span>
+      </div>
+
+      <div id="emails-log-list" style="margin-top: 1rem;">
+        <p style="color: #94a3b8;">Cargando registro de correos...</p>
       </div>
     </div>
   </main>
+
+  <!-- Modal para ver el contenido completo de un mail -->
+  <div id="modal-email-detail" class="payment-modal hidden" style="z-index: 9999;">
+    <div class="payment-modal-content" style="max-width: 580px;">
+      <div class="payment-header">
+        <h3 id="modal-email-subject">✉️ Detalle del Correo</h3>
+        <button type="button" onclick="closeEmailModal()" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:#64748b;">✕</button>
+      </div>
+      <div style="font-size: 0.85rem; color: #475569; margin-bottom: 0.75rem; display: flex; flex-direction: column; gap: 0.25rem;">
+        <div><strong>Destinatario:</strong> <span id="modal-email-to" style="color: #2563eb;">-</span></div>
+        <div><strong>Fecha y Hora de Envío:</strong> <span id="modal-email-date">-</span></div>
+      </div>
+      <div class="email-preview-box" id="modal-email-body" style="max-height: 380px; overflow-y: auto;">-</div>
+      <div style="margin-top: 1rem; display: flex; justify-content: flex-end;">
+        <button type="button" class="btn-primary" onclick="closeEmailModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     async function cancelBookingByAdmin(bookingId) {
@@ -435,29 +517,131 @@
           });
         }
 
-        // Emails log
+        // Emails log agrupados por mes y con detalle colapsable / modal
         const emailContainer = document.getElementById('emails-log-list');
+        const countBadge = document.getElementById('emails-count-badge');
         if (emailContainer) {
-          if (!data.recentEmails || data.recentEmails.length === 0) {
-            emailContainer.innerHTML = '<p style="color: #94a3b8;">No se registraron envíos de correo aún.</p>';
+          const emails = data.recentEmails || [];
+          if (countBadge) countBadge.textContent = `${emails.length} Correos`;
+
+          if (emails.length === 0) {
+            emailContainer.innerHTML = '<p style="color: #94a3b8; padding: 1rem 0;">No se registraron envíos de correo aún.</p>';
           } else {
             emailContainer.innerHTML = '';
-            data.recentEmails.forEach(em => {
-              const box = document.createElement('div');
-              box.innerHTML = `
-                <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#475569;">
-                  <span><strong>Para:</strong> ${em.to}</span>
-                  <span>${new Date(em.date).toLocaleString('es-AR')}</span>
+
+            // Agrupar por Mes y Año (Ej: "Noviembre 2026")
+            const groups = {};
+            emails.forEach((em, idx) => {
+              const d = new Date(em.date);
+              const monthKey = isNaN(d.getTime()) ? 'Historial Anterior' : d.toLocaleDateString('es-AR', { year: 'numeric', month: 'long' });
+              const capitalizedKey = monthKey.charAt(0).toUpperCase() + monthKey.slice(1);
+              if (!groups[capitalizedKey]) groups[capitalizedKey] = [];
+              groups[capitalizedKey].push({ ...em, originalIndex: idx });
+            });
+
+            // Guardar para acceso modal
+            window._cachedEmails = emails;
+
+            const groupKeys = Object.keys(groups);
+            groupKeys.forEach((key, groupIdx) => {
+              const groupEmails = groups[key];
+              const isCurrentMonth = groupIdx === 0; // El primer mes (más reciente) arranca abierto
+
+              const card = document.createElement('div');
+              card.className = 'month-group-card';
+
+              const header = document.createElement('div');
+              header.className = 'month-group-header';
+              header.innerHTML = `
+                <div class="month-group-title">
+                  <span id="chevron-month-${groupIdx}" style="transition: transform 0.2s; display: inline-block; transform: ${isCurrentMonth ? 'rotate(90deg)' : 'rotate(0deg)'};">▶</span>
+                  <span>📅 ${key}</span>
+                  <span style="font-size: 0.78rem; font-weight: normal; color: #64748b; margin-left: 0.25rem;">(${groupEmails.length} correos)</span>
                 </div>
-                <div class="email-preview-box">${em.content}</div>
+                <small style="color: #64748b; font-size: 0.78rem;">${isCurrentMonth ? 'Clic para contraer' : 'Clic para desplegar'}</small>
               `;
-              emailContainer.appendChild(box);
+
+              const listContainer = document.createElement('div');
+              listContainer.id = `month-list-${groupIdx}`;
+              listContainer.style.display = isCurrentMonth ? 'block' : 'none';
+
+              groupEmails.forEach(em => {
+                const isCancel = (em.content || '').includes('[CANCELACIÓN]') || (em.content || '').toLowerCase().includes('cancelad');
+                const row = document.createElement('div');
+                row.className = 'email-item-row';
+                
+                // Extraer asunto / resumen si existe
+                let summary = isCancel ? 'Aviso de Cancelación de Turno' : 'Confirmación de Turno';
+                const matchCancha = (em.content || '').match(/Cancha:\s*([^(\n\r]+)/i);
+                if (matchCancha) summary += ` (${matchCancha[1].trim()})`;
+
+                const dateStr = new Date(em.date).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+                row.innerHTML = `
+                  <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+                    <span class="email-badge-tipo ${isCancel ? 'email-badge-cancel' : 'email-badge-confirm'}">
+                      ${isCancel ? 'Cancelación' : 'Confirmación'}
+                    </span>
+                    <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                      <strong>${em.to}</strong>
+                      <span style="color: #64748b; font-size: 0.8rem; margin-left: 0.35rem;">• ${summary}</span>
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.65rem; font-size: 0.8rem; color: #64748b; white-space: nowrap;">
+                    <span>${dateStr} hs</span>
+                    <span style="color: #2563eb; font-weight: 700;">Ver ↗</span>
+                  </div>
+                `;
+
+                row.addEventListener('click', () => {
+                  openEmailModal(em);
+                });
+
+                listContainer.appendChild(row);
+              });
+
+              header.addEventListener('click', () => {
+                const isHidden = listContainer.style.display === 'none';
+                listContainer.style.display = isHidden ? 'block' : 'none';
+                const chevron = document.getElementById(`chevron-month-${groupIdx}`);
+                if (chevron) {
+                  chevron.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
+                }
+              });
+
+              card.appendChild(header);
+              card.appendChild(listContainer);
+              emailContainer.appendChild(card);
             });
           }
         }
       } catch (err) {
         console.error('Error cargando estadísticas:', err);
       }
+    }
+
+    // Modal de Detalle de Correo
+    function openEmailModal(em) {
+      const modal = document.getElementById('modal-email-detail');
+      const elSubject = document.getElementById('modal-email-subject');
+      const elTo = document.getElementById('modal-email-to');
+      const elDate = document.getElementById('modal-email-date');
+      const elBody = document.getElementById('modal-email-body');
+
+      if (!modal) return;
+
+      const isCancel = (em.content || '').includes('[CANCELACIÓN]') || (em.content || '').toLowerCase().includes('cancelad');
+      if (elSubject) elSubject.textContent = isCancel ? '❌ Detalle de Correo de Cancelación' : '✉️ Detalle de Correo de Confirmación';
+      if (elTo) elTo.textContent = em.to;
+      if (elDate) elDate.textContent = `${new Date(em.date).toLocaleString('es-AR')} hs`;
+      if (elBody) elBody.textContent = em.content;
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeEmailModal() {
+      const modal = document.getElementById('modal-email-detail');
+      if (modal) modal.classList.add('hidden');
     }
 
     document.getElementById('btn-refresh-stats').addEventListener('click', loadStats);
