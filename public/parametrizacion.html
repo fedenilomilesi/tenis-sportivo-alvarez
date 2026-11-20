@@ -526,7 +526,7 @@
 
           <div>
             <label style="font-size: 0.85rem; font-weight: 600;">Profesores Notificados en Copia (CC):</label>
-            <input type="text" id="cfg-email-profs" value="jarnocefarelli@gmail.com, leonardoalbertoli@gmail.com" required class="input-box" />
+            <input type="text" id="cfg-email-profs" value="jarnitocefarelli@gmail.com, leonardoalbertoli@gmail.com" required class="input-box" />
           </div>
         </div>
 
@@ -707,7 +707,7 @@
         const cfgProfs = document.getElementById('cfg-email-profs');
         if (cfgSender) cfgSender.value = currentEmailConfig.senderEmail || 'tenissfc@gmail.com';
         if (cfgScriptUrl && currentEmailConfig.googleScriptUrl) cfgScriptUrl.value = currentEmailConfig.googleScriptUrl;
-        if (cfgProfs) cfgProfs.value = (currentEmailConfig.profEmails || ['jarnocefarelli@gmail.com', 'leonardoalbertoli@gmail.com']).join(', ');
+        if (cfgProfs) cfgProfs.value = (currentEmailConfig.profEmails || ['jarnitocefarelli@gmail.com', 'leonardoalbertoli@gmail.com']).join(', ');
       } catch (err) {
         console.error('Error cargando configuración:', err);
       }
@@ -1285,6 +1285,11 @@
               <button type="button" class="btn-action-edit" onclick="openEditUserModal('${u.id}', '${escapeQuotes(u.nombre)}', '${escapeQuotes(u.apellido)}', '${u.dni}', '${escapeQuotes(u.celular || '')}', '${escapeQuotes(u.mail)}', '${u.memberType || 'socio'}', '${u.role || 'socio'}', ${isActivo})">
                 ✏️ Editar
               </button>
+              ${(isAdmin || isProf) ? `
+                <button type="button" class="btn-action-edit" style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a;" onclick="resetUserPassword('${u.id}', '${escapeQuotes(u.nombre)} ${escapeQuotes(u.apellido)}')">
+                  🔑 Blanquear Clave
+                </button>
+              ` : ''}
               ${!isProtected ? `
                 <button type="button" class="btn-action-toggle" onclick="toggleUserStatus('${u.id}', '${escapeQuotes(u.nombre)} ${escapeQuotes(u.apellido)}')">
                   ${isActivo ? '⏸️ Inactivar' : '▶️ Activar'}
@@ -1398,6 +1403,25 @@
         }
       } catch (err) {
         alert('Error de conexión al eliminar usuario.');
+      }
+    };
+
+    // Blanquear contraseña de admin o profesor
+    window.resetUserPassword = async function(userId, userName) {
+      if (!confirm(`¿Estás seguro de que deseás blanquear la contraseña de ${userName}?\n\nEn su próximo ingreso se le solicitará ingresar una nueva contraseña obligatoria.`)) return;
+
+      try {
+        const res = await fetch(`/api/users/${encodeURIComponent(userId)}/reset-password`, {
+          method: 'POST'
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`✅ ${data.message || 'Contraseña blanqueada con éxito.'}`);
+        } else {
+          alert(`❌ ${data.error || 'Error al blanquear la contraseña.'}`);
+        }
+      } catch (err) {
+        alert('Error de conexión al blanquear contraseña.');
       }
     };
 

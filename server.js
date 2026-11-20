@@ -280,7 +280,7 @@ const server = http.createServer(async (req, res) => {
           googleScriptUrl: (body.emailConfig.googleScriptUrl !== undefined ? body.emailConfig.googleScriptUrl : (newEmailConfig.googleScriptUrl || '')).trim(),
           resendApiKey: (body.emailConfig.resendApiKey !== undefined ? body.emailConfig.resendApiKey : (newEmailConfig.resendApiKey || '')).trim(),
           appPassword: (body.emailConfig.appPassword !== undefined ? body.emailConfig.appPassword : (newEmailConfig.appPassword || '')).trim(),
-          profEmails: Array.isArray(body.emailConfig.profEmails) ? body.emailConfig.profEmails : (newEmailConfig.profEmails || ['jarnocefarelli@gmail.com', 'leonardoalbertoli@gmail.com']),
+          profEmails: Array.isArray(body.emailConfig.profEmails) ? body.emailConfig.profEmails : (newEmailConfig.profEmails || ['jarnitocefarelli@gmail.com', 'leonardoalbertoli@gmail.com']),
           enabled: body.emailConfig.enabled !== false
         };
       }
@@ -550,6 +550,27 @@ const server = http.createServer(async (req, res) => {
       });
     } catch (e) {
       return sendJson(res, 500, { error: 'Error al actualizar usuario.' });
+    }
+  }
+
+  // POST /api/users/:id/reset-password (Blanquear contraseña de administrador o profesor)
+  if (pathname.startsWith('/api/users/') && pathname.endsWith('/reset-password') && req.method === 'POST') {
+    try {
+      const parts = pathname.replace('/reset-password', '').split('/');
+      const userId = parts[3];
+      const user = await dbAdapter.findUserById(userId);
+      if (!user) {
+        return sendJson(res, 404, { error: 'Usuario no encontrado.' });
+      }
+
+      await dbAdapter.clearStaffPassword(user.dni);
+
+      return sendJson(res, 200, {
+        ok: true,
+        message: `Contraseña de ${user.nombre} ${user.apellido} blanqueada con éxito. En su próximo ingreso se le solicitará generar una nueva contraseña.`
+      });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'Error al blanquear contraseña.' });
     }
   }
 

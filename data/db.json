@@ -16,9 +16,10 @@
       "apellido": "Cefarelli",
       "dni": "47039935",
       "celular": "3402521352",
-      "mail": "jarnocefarelli@gmail.com",
+      "mail": "jarnitocefarelli@gmail.com",
       "role": "profesor",
-      "memberType": "socio"
+      "memberType": "socio",
+      "activo": true
     },
     {
       "id": "prof-leonardo",

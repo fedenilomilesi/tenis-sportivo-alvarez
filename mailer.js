@@ -2,7 +2,7 @@ const nodemailer = require('nodemailer');
 const dbAdapter = require('./db');
 
 const DEFAULT_SENDER = 'tenissfc@gmail.com';
-const PROFESSOR_EMAILS = ['jarnocefarelli@gmail.com', 'leonardoalbertoli@gmail.com'];
+const PROFESSOR_EMAILS = ['jarnitocefarelli@gmail.com', 'leonardoalbertoli@gmail.com'];
 
 /**
  * Envío vía Google Apps Script Webhook (HTTPS Puerto 443).
@@ -145,7 +145,7 @@ async function sendBookingConfirmationEmail(booking, user, emailConfig = null) {
   const toEmail = user.mail;
   const ccEmails = profs.filter(p => p && p.toLowerCase() !== toEmail.toLowerCase());
 
-  const subject = `🎾 Confirmación de Turno - ${booking.court} (${booking.slot}) - Sportivo FC Álvarez`;
+  const subject = `[SFC Tenis] Confirmación de Turno - ${booking.court} (${booking.slot}) - Sportivo FC Álvarez`;
 
   const textContent = `
 Estimado/a ${titularName},
@@ -204,26 +204,26 @@ Sportivo Fútbol Club de Álvarez
     </table>
 
     <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 20px;">
-      <strong style="color: #334155; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">👥 Jugadores Registrados:</strong>
+      <strong style="color: #334155; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">&bull; Jugadores Registrados:</strong>
       <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 14px; color: #1e293b; line-height: 1.6;">
         ${formatPlayersHtml(booking.players, titularName)}
       </ul>
     </div>
 
     <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px; margin-bottom: 20px;">
-      <strong style="color: #92400e; font-size: 13px;">⚠️ AVISO MUY IMPORTANTE:</strong>
+      <strong style="color: #92400e; font-size: 13px;">[AVISO MUY IMPORTANTE]</strong>
       <p style="margin: 6px 0 0 0; font-size: 13px; color: #b45309; line-height: 1.5;">
         "Si por alguna razón no vas a poder usar el turno, por favor cancelalo con anticipación desde la web para que otro socio pueda aprovecharlo y disfrutar de la cancha."
       </p>
     </div>
 
     <p style="font-size: 12px; color: #64748b; margin-top: 15px; border-top: 1px dashed #cbd5e1; padding-top: 12px;">
-      ℹ️ <em>Aviso automático: este turno se envía con copia informativa a los profesores Jarno Cefarelli y Leonardo Albertoli para el control de ocupación de las canchas del club.</em>
+      <em>Aviso automático: este turno se envía con copia informativa a los profesores Jarno Cefarelli y Leonardo Albertoli para el control de ocupación de las canchas del club.</em>
     </p>
   </div>
 
   <div style="background-color: #f1f5f9; padding: 16px 24px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0;">
-    <strong>Sportivo Fútbol Club de Álvarez</strong> • San Martín y Urquiza, Álvarez, Santa Fe<br>
+    <strong>Sportivo Fútbol Club de Álvarez</strong> • Caseros SN, Álvarez, Santa Fe<br>
     Consultas y administración: <strong>3402 521352</strong>
   </div>
 </div>
@@ -296,7 +296,7 @@ async function sendBookingCancellationEmail(booking, user, cancelledByName = nul
   const toEmail = user.mail;
   const ccEmails = profs.filter(p => p && p.toLowerCase() !== toEmail.toLowerCase());
 
-  const subject = `⚠️ Turno Cancelado (Cancha Libre) - ${booking.court} (${booking.slot}) - Sportivo FC Álvarez`;
+  const subject = `[CANCELACIÓN] Turno Cancelado (Cancha Libre) - ${booking.court} (${booking.slot}) - Sportivo FC Álvarez`;
 
   const textContent = `
 Aviso de Cancelación de Reserva:

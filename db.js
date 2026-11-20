@@ -71,7 +71,7 @@ function readLocalDb() {
           apellido: 'Cefarelli',
           dni: '47039935',
           celular: '3402521352',
-          mail: 'jarnocefarelli@gmail.com',
+          mail: 'jarnitocefarelli@gmail.com',
           role: 'profesor',
           memberType: 'socio'
         },
@@ -608,7 +608,7 @@ const DEFAULT_EMAIL_CONFIG = {
   googleScriptUrl: process.env.GOOGLE_SCRIPT_URL || '',
   resendApiKey: process.env.RESEND_API_KEY || '',
   appPassword: process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD || '',
-  profEmails: ['jarnocefarelli@gmail.com', 'leonardoalbertoli@gmail.com'],
+  profEmails: ['jarnitocefarelli@gmail.com', 'leonardoalbertoli@gmail.com'],
   enabled: true
 };
 
@@ -645,6 +645,32 @@ async function setStaffPassword(dni, password) {
       supabaseConnected = true;
     } catch (e) {
       console.warn('Error guardando password en Supabase:', e.message);
+    }
+  }
+  return true;
+}
+
+async function clearStaffPassword(dni) {
+  const clean = String(dni || '').replace(/\D/g, '');
+  if (!clean) return false;
+
+  const passwords = await getStaffPasswords();
+  if (passwords[clean]) {
+    delete passwords[clean];
+  }
+
+  // Local
+  const localDb = readLocalDb();
+  localDb.staffPasswords = passwords;
+  writeLocalDb(localDb);
+
+  // Supabase
+  if (supabase) {
+    try {
+      await supabase.from('club_settings').upsert({ key: 'staff_passwords', data: passwords }, { onConflict: 'key' });
+      supabaseConnected = true;
+    } catch (e) {
+      console.warn('Error blanqueando password en Supabase:', e.message);
     }
   }
   return true;
@@ -774,5 +800,6 @@ module.exports = {
   DEFAULT_BANK_INFO,
   DEFAULT_EMAIL_CONFIG,
   getStaffPasswords,
-  setStaffPassword
+  setStaffPassword,
+  clearStaffPassword
 };

@@ -15,18 +15,18 @@ const DEFAULT_PROFESSORS = [
     id: 'prof-jarno',
     nombre: 'Jarno',
     apellido: 'Cefarelli',
-    dni: '11111111',
+    dni: '47039935',
     celular: '3402521352',
-    mail: 'jarno.cefarelli@sportivoalvarez.com',
+    mail: 'jarnitocefarelli@gmail.com',
     role: 'profesor'
   },
   {
     id: 'prof-leonardo',
     nombre: 'Leonardo',
     apellido: 'Albertoli',
-    dni: '22222222',
+    dni: '25410483',
     celular: '3402521352',
-    mail: 'leonardo.albertoli@sportivoalvarez.com',
+    mail: 'leonardoalbertoli@gmail.com',
     role: 'profesor'
   }
 ];
@@ -534,7 +534,7 @@ function renderStatusBanner() {
     windowStatusBanner.innerHTML = `
       <div>
         <strong>🔒 Turnos de MAÑANA (${formatDateHuman(targetDateObj)}) AÚN CERRADOS</strong>
-        <div>Se habilitan hoy a las <strong>20:00 hs para los profesores</strong> (Jarno Cefarelli y Leonardo Albertoli) y a las <strong>21:00 hs para todos los usuarios</strong>. <em>(Podés probar la apertura cambiando el "Modo Horario" arriba a la derecha)</em>.</div>
+        <div>Se habilitan hoy a las <strong>20:00 hs para los profesores</strong> (Jarno Cefarelli y Leonardo Albertoli) y a las <strong>21:00 hs para todos los usuarios</strong>.</div>
       </div>
     `;
   }
